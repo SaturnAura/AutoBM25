@@ -46,7 +46,7 @@ def find_dataset_dirs(base="dataset", include_augmented=False):
 def cmd_predict(args):
     docs, queries, qrels = load_dataset(args.dataset)
     name = os.path.basename(os.path.normpath(args.dataset))
-    features = extract_features(docs)
+    features = extract_features(docs, queries)
     params = predict(features)
     save_features_json(features, os.path.join(args.out_dir, f"{name}_features.json"))
     save_params_json(params, os.path.join(args.out_dir, f"{name}_predicted.json"))

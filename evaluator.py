@@ -2,6 +2,7 @@
 
 import itertools
 import json
+import math
 import os
 
 import numpy as np
@@ -10,7 +11,7 @@ from scipy import stats
 from scipy.optimize import nnls
 from tqdm import tqdm
 
-from bm25_engine import BM25Engine
+from bm25_engine import BM25Engine, tokenize
 from data_loader import load_dataset
 from feature_extractor import extract_features, save_json as save_features_json
 from rule_predictor import load_config, predict, save_config
@@ -23,6 +24,71 @@ def _relevant_map(qrels):
         if r["relevance"] > 0:
             rel.setdefault(r["qid"], {})[r["doc_id"]] = r["relevance"]
     return rel
+
+
+class _QueryPlan:
+    """grid search 快速路径：预先解析每条查询，把命中的倒排条目拼成
+    大数组（docs/tf/dl/idf），每个参数组合只需一次向量化累加，
+    避免逐词字典查找和多次 np.add.at。"""
+
+    def __init__(self, engine, query):
+        self.N = engine.N
+        self.avgdl = engine.avgdl
+        docs_list, tf_list, dl_list, idf_rsj, idf_smooth = [], [], [], [], []
+        for t in tokenize(query):
+            post = engine.postings.get(t)
+            if post is None:
+                continue
+            d, tf = post
+            df = engine.doc_freq[t]
+            docs_list.append(d)
+            tf_list.append(tf)
+            dl_list.append(engine._dl_float[d])
+            idf_rsj.append(np.full(d.shape, math.log((self.N - df + 0.5) / (df + 0.5))))
+            idf_smooth.append(np.full(d.shape, math.log((self.N + 1) / (df + 1))))
+        if not docs_list:
+            self.docs = self.tf = self.dl = self.idf = None
+        else:
+            self.docs = np.concatenate(docs_list)
+            self.tf = np.concatenate(tf_list)
+            self.dl = np.concatenate(dl_list)
+            self.idf = {
+                "rsj": np.concatenate(idf_rsj),
+                "smoothed": np.concatenate(idf_smooth),
+            }
+
+    def score(self, k1, b, delta, idf_type):
+        """返回长度为 N 的分数向量（未匹配文档为 0）。"""
+        if self.docs is None:
+            return np.zeros(self.N, dtype=np.float64)
+        avgdl = self.avgdl
+        denom = self.tf + k1 * (1 - b + b * self.dl / avgdl) if avgdl > 0 else self.tf + k1
+        part = self.idf[idf_type] * self.tf * (k1 + 1) / denom
+        if delta > 0:  # BM25+ 补偿项
+            part = part + delta * self.idf[idf_type]
+        # bincount 加权累加（重复 doc 索引自动求和，比 np.add.at 快得多）
+        return np.bincount(self.docs, weights=part, minlength=self.N)
+
+
+def _query_metrics(ranked_ids, rels, top_k):
+    """对单条查询的排序结果计算 MRR@10 / NDCG@10 / Recall@100。"""
+    rr = 0.0
+    for i, doc_id in enumerate(ranked_ids[:10]):
+        if doc_id in rels:
+            rr = 1.0 / (i + 1)
+            break
+    dcg = 0.0
+    for i, doc_id in enumerate(ranked_ids[:10]):
+        gain = rels.get(doc_id, 0)
+        if gain > 0:
+            dcg += gain / np.log2(i + 2)
+    ideal = sorted(rels.values(), reverse=True)[:10]
+    idcg = sum(gain / np.log2(i + 2) for i, gain in enumerate(ideal))
+    hit = 0
+    for doc_id in ranked_ids[:100]:
+        if doc_id in rels:
+            hit += 1
+    return rr, (dcg / idcg if idcg > 0 else 0.0), hit / len(rels)
 
 
 def evaluate_engine(engine, queries, qrels, top_k=100):
@@ -89,17 +155,45 @@ def grid_search(docs, queries, qrels, search_space=None, metric="ndcg@10", top_k
         for vals in itertools.product(*search_space.values())
     ]
     engine = BM25Engine().build_index(docs)
+    plans = [_QueryPlan(engine, q["query"]) for q in qs]
+    rel = _relevant_map(qrels)
+    doc_ids = engine.doc_ids
     results = []
     it = tqdm(combos, desc="grid search", mininterval=1.0) if progress else combos
     for params in it:
-        engine.set_params(
-            k1=params["k1"],
-            b=params["b"],
-            delta=params["delta"],
-            idf_type=params["idf_type"],
+        k1, b, delta, idf_type = (
+            params["k1"],
+            params["b"],
+            params["delta"],
+            params["idf_type"],
         )
-        scores = evaluate_engine(engine, qs, qrels, top_k=top_k)
-        entry = {"params": dict(params), **scores}
+        mrr, ndcg, recall = [], [], []
+        for plan, q in zip(plans, qs):
+            rels = rel.get(q["qid"])
+            if not rels:
+                continue
+            scores = plan.score(k1, b, delta, idf_type)
+            nonzero = np.flatnonzero(scores)
+            if nonzero.size == 0:
+                mrr.append(0.0)
+                ndcg.append(0.0)
+                recall.append(0.0)
+                continue
+            k = min(top_k, nonzero.size)
+            top = nonzero[np.argpartition(scores[nonzero], -k)[-k:]]
+            order = top[np.lexsort((top, -scores[top]))]
+            ranked_ids = [doc_ids[int(i)] for i in order]
+            rr, ndcg_v, rec = _query_metrics(ranked_ids, rels, top_k)
+            mrr.append(rr)
+            ndcg.append(ndcg_v)
+            recall.append(rec)
+        entry = {
+            "params": dict(params),
+            "mrr@10": float(np.mean(mrr)) if mrr else 0.0,
+            "ndcg@10": float(np.mean(ndcg)) if ndcg else 0.0,
+            "recall@100": float(np.mean(recall)) if recall else 0.0,
+            "num_queries_evaluated": len(mrr),
+        }
         results.append(entry)
         if progress:
             it.set_postfix_str(f"best {metric}={max(r[metric] for r in results):.4f}")
@@ -200,7 +294,7 @@ def calibrate(dataset_paths, out_dir="results", test_frac=0.2, limit_queries=Non
         if not docs or not queries:
             print(f"[calibrate] 跳过空数据集: {path}")
             continue
-        features = extract_features(docs)
+        features = extract_features(docs, queries)
         gs = grid_search(
             docs, queries, qrels, config["grid_search"],
             metric=config["grid_search"]["metric"],
