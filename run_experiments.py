@@ -18,10 +18,10 @@ from data_loader import load_dataset
 from evaluator import evaluate, grid_search
 from feature_extractor import extract_features
 from main import find_dataset_dirs
-from rule_predictor import load_config, predict
+from rule_predictor import load_config, predict, predict_with_dictionary
 
 
-def run_one(path, config, eval_queries=None, grid_queries=None):
+def run_one(path, config, eval_queries=None, grid_queries=None, use_dict=False, grid_k3=None):
     name = os.path.basename(os.path.normpath(path))
     row = {"name": name, "path": os.path.abspath(path)}
 
@@ -44,6 +44,9 @@ def run_one(path, config, eval_queries=None, grid_queries=None):
         t0 = time.time()
         row["default_metrics"] = evaluate(docs, qs, qrels, config["default_params"])
         row["predicted_metrics"] = evaluate(docs, qs, qrels, row["predicted_params"])
+        if use_dict:
+            row["dict_params"] = predict_with_dictionary(features, config)
+            row["dict_metrics"] = evaluate(docs, qs, qrels, row["dict_params"])
         row["eval_seconds"] = round(time.time() - t0, 1)
         for m in ("mrr@10", "ndcg@10", "recall@100"):
             base = row["default_metrics"][m]
@@ -53,8 +56,11 @@ def run_one(path, config, eval_queries=None, grid_queries=None):
 
     if grid_queries:
         t0 = time.time()
+        space = dict(config["grid_search"])
+        if grid_k3:
+            space["k3"] = [float(v) for v in grid_k3]
         gs = grid_search(
-            docs, queries, qrels, config["grid_search"],
+            docs, queries, qrels, space,
             metric=config["grid_search"]["metric"],
             top_k=config["grid_search"]["top_k"],
             limit_queries=grid_queries,
@@ -83,6 +89,10 @@ def main():
     ap.add_argument("--grid-datasets", nargs="+", default=[], help="对这些数据集跑 grid search")
     ap.add_argument("--grid-queries", type=int, default=-1,
                     help="grid search 用查询数；-1 表示全部，缺省全部")
+    ap.add_argument("--grid-k3", nargs="+", default=None,
+                    help="覆盖 grid 的 k3 搜索轴，如 --grid-k3 0 1.2 4")
+    ap.add_argument("--use-dict", action="store_true",
+                    help="评估时额外预测并评估词典参数（查表+回退）")
     ap.add_argument("--out", default="results/benchmark_results.json")
     args = ap.parse_args()
 
@@ -104,13 +114,17 @@ def main():
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     for path in paths:
         name = os.path.basename(os.path.normpath(path))
+        existing = results.get(name, {})
         row = run_one(
             path,
             config,
             eval_queries=args.eval_queries,
             grid_queries=args.grid_queries if name in args.grid_datasets else None,
+            use_dict=args.use_dict,
+            grid_k3=args.grid_k3,
         )
-        results[name] = row
+        # 合并而不是覆盖：重跑评估时保留已有的 grid 结果等字段
+        results[name] = {**existing, **row}
         # 增量保存：中途失败也不丢已跑完的数据集
         with open(args.out, "w", encoding="utf-8") as f:
             json.dump(results, f, ensure_ascii=False, indent=2)

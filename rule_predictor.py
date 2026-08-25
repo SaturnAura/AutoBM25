@@ -1,8 +1,9 @@
-"""基于统计特征的启发式参数预测。
+"""基于统计特征的启发式参数预测（含词典查表 + 回退）。
 
 公式（系数在 config.yaml，可用 calibrate 重新标定）：
   k1    = clip(k1_base - alpha_ttr*avg_ttr + alpha_maxtf*min(avg_max_tf/20, 1), 0.5, 3.0)
   b     = clip(b_base + beta_corr*length_tf_corr - beta_cv*cv_len, 0, 1)
+  k3    = clip(k3_base*(avg_query_max_tf-1) + k3_rep*query_repeat_ratio, 0, 8)
   delta = clip(gamma_delta*cv_len, 0, 2.0)
   IDF   = smoothed（若 heaps_beta>0.7 或 hapax_ratio>0.6），否则 rsj
 """
@@ -53,6 +54,13 @@ def predict(features, config=None):
     )
     # delta：长度差异越大，越需要 BM25+ 补偿短文档
     delta = clip(c["gamma_delta"] * features["cv_len"], c["delta_min"], c["delta_max"])
+    # k3：查询词频饱和项，查询内重复词越多 → k3 越大
+    k3 = clip(
+        c["k3_base"] * max(features.get("avg_query_max_tf", 1.0) - 1.0, 0.0)
+        + c["k3_rep"] * features.get("query_repeat_ratio", 0.0),
+        c.get("k3_min", 0.0),
+        c.get("k3_max", 8.0),
+    )
 
     idf_type = (
         "smoothed"
@@ -66,10 +74,25 @@ def predict(features, config=None):
     return {
         "k1": round(float(k1), 4),
         "b": round(float(b), 4),
+        "k3": round(float(k3), 4),
         "delta": round(float(delta), 4),
         "idf_type": idf_type,
         "model_variant": model_variant,
     }
+
+
+def predict_with_dictionary(features, config=None, dictionary=None):
+    """先查参数词典（命中返回词典参数），未命中回退到启发式规则。"""
+    if dictionary is None:
+        dict_path = os.path.join(os.path.dirname(__file__), "results", "param_dictionary.json")
+        if os.path.exists(dict_path):
+            from param_dictionary import ParamDictionary
+            dictionary = ParamDictionary.load(dict_path)
+    if dictionary is not None:
+        hit = dictionary.lookup(features)
+        if hit is not None:
+            return {k: hit[k] for k in ("k1", "b", "k3", "delta", "idf_type", "model_variant")}
+    return predict(features, config)
 
 
 def save_json(obj, path):

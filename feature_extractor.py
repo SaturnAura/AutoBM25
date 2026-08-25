@@ -165,14 +165,23 @@ def extract_features(docs, queries=None, stopwords=None, heaps_points=50):
 
     # ---- 维度四：查询侧特征（可选，有查询集时计算）----
     if queries:
-        q_lens, q_idfs = [], []
+        q_lens, q_idfs, q_max_tfs = [], [], []
         q_oov = 0
         total_q_tokens = 0
+        q_with_repeat = 0
+        q_count = 0
         for q in queries:
             toks = tokenize(q["query"])
             if not toks:
                 continue
             q_lens.append(len(toks))
+            q_count += 1
+            qtf = {}
+            for t in toks:
+                qtf[t] = qtf.get(t, 0) + 1
+            q_max_tfs.append(max(qtf.values()))
+            if max(qtf.values()) > 1:
+                q_with_repeat += 1
             total_q_tokens += len(toks)
             for t in toks:
                 if t in doc_freq:
@@ -181,6 +190,8 @@ def extract_features(docs, queries=None, stopwords=None, heaps_points=50):
                 else:
                     q_oov += 1
         features["avg_query_len"] = float(np.mean(q_lens)) if q_lens else 0.0
+        features["avg_query_max_tf"] = float(np.mean(q_max_tfs)) if q_max_tfs else 0.0
+        features["query_repeat_ratio"] = q_with_repeat / q_count if q_count else 0.0
         features["query_oov_ratio"] = q_oov / total_q_tokens if total_q_tokens else 0.0
         features["query_idf_mean"] = float(np.mean(q_idfs)) if q_idfs else 0.0
         features["query_idf_std"] = (

@@ -27,10 +27,14 @@ def main():
         "arguana": "论点/议论文检索",
         "fiqa": "金融问答",
         "nfcorpus": "医学信息检索",
+        "nq": "开放域问答（超大规模）",
         "quora": "社区问答去重",
         "scidocs": "科学文献检索",
         "scifact": "科学论断证据",
         "trec-covid": "COVID 学术文献",
+        "trec-covid-beir": "COVID 学术文献（同语料/不同标注）",
+        "trec-covid-v2": "COVID 学术文献（v2 语料）",
+        "vihealthqa": "越南语健康问答",
         "webis-touche2020": "论点检索",
     }
     for name in names:
@@ -48,12 +52,13 @@ def main():
         )
 
     print("\n### 预测参数\n")
-    print("| 数据集 | k1 | b | δ | IDF | 模型变体 |")
-    print("|---|---:|---:|---:|---|---|")
+    print("| 数据集 | k1 | b | k3 | δ | IDF | 模型变体 |")
+    print("|---|---:|---:|---:|---:|---|---|")
     for name in names:
         p = res[name]["predicted_params"]
         print(
-            f"| {name} | {fmt(p['k1'])} | {fmt(p['b'])} | {fmt(p['delta'])} | "
+            f"| {name} | {fmt(p['k1'])} | {fmt(p['b'])} | {fmt(p.get('k3', 0.0))} | "
+            f"{fmt(p['delta'])} | "
             f"{p['idf_type']} | {p['model_variant']} |"
         )
 

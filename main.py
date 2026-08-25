@@ -15,7 +15,7 @@ from data_augmentation import augment_dataset
 from data_loader import load_dataset
 from evaluator import calibrate, evaluate, grid_search
 from feature_extractor import extract_features, save_json as save_features_json
-from rule_predictor import load_config, predict, save_json as save_params_json
+from rule_predictor import load_config, predict, predict_with_dictionary, save_json as save_params_json
 
 
 def find_dataset_dirs(base="dataset", include_augmented=False):
@@ -47,7 +47,7 @@ def cmd_predict(args):
     docs, queries, qrels = load_dataset(args.dataset)
     name = os.path.basename(os.path.normpath(args.dataset))
     features = extract_features(docs, queries)
-    params = predict(features)
+    params = predict(features) if args.no_dict else predict_with_dictionary(features)
     save_features_json(features, os.path.join(args.out_dir, f"{name}_features.json"))
     save_params_json(params, os.path.join(args.out_dir, f"{name}_predicted.json"))
     print(f"[predict] {name}: {params}")
@@ -118,6 +118,16 @@ def cmd_calibrate(args):
     )
 
 
+def cmd_build_dict(args):
+    from param_dictionary import build_dictionary
+    build_dictionary(
+        benchmark_path=os.path.join(args.out_dir, "benchmark_results.json"),
+        out_path=os.path.join(args.out_dir, "param_dictionary.json"),
+        k_neighbors=args.dict_k,
+        match_threshold=args.dict_threshold,
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description="AutoBM25: 基于数据集统计特征的 BM25 自适应超参数选择")
     parser.add_argument("--dataset", type=str, help="数据集目录，如 dataset/fiqa")
@@ -130,6 +140,12 @@ def main():
     parser.add_argument("--base", default="dataset", help="--calibrate 扫描的根目录，默认 dataset")
     parser.add_argument("--include-augmented", action="store_true",
                         help="--calibrate 时把 dataset/augmented 下的增强数据集也纳入")
+    parser.add_argument("--build-dict", action="store_true",
+                        help="从 results/benchmark_results.json 构建参数词典")
+    parser.add_argument("--dict-k", type=int, default=1, help="词典最近邻数量")
+    parser.add_argument("--dict-threshold", type=float, default=2.0,
+                        help="词典命中距离阈值（归一化特征空间）")
+    parser.add_argument("--no-dict", action="store_true", help="预测时跳过词典，只用启发式")
     parser.add_argument("--test-frac", type=float, default=0.2, help="标定时留出的测试集比例")
     parser.add_argument("--limit-queries", type=int, default=None,
                         help="grid search 时最多使用的查询数（大数据集加速用）")
@@ -138,7 +154,9 @@ def main():
     args = parser.parse_args()
     os.makedirs(args.out_dir, exist_ok=True)
 
-    if args.calibrate:
+    if args.build_dict:
+        cmd_build_dict(args)
+    elif args.calibrate:
         cmd_calibrate(args)
     elif args.augment:
         if not args.dataset:

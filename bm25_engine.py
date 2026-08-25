@@ -1,7 +1,8 @@
 """自实现 BM25 / BM25+ 检索引擎（倒排索引）。
 
 打分公式：
-  BM25:  score += idf(q) * f(q,D)*(k1+1) / (f(q,D) + k1*(1-b+b*|D|/avgdl))
+  BM25:  score += idf(q) * [f(q,D)*(k1+1) / (f(q,D) + k1*(1-b+b*|D|/avgdl))]
+                 * [f(q,Q)*(k3+1) / (f(q,Q) + k3)]           （查询词频饱和项，k3=0 时退化为 1）
   BM25+: score += idf(q) * [上面那项 + delta]
 
 两种 IDF：
@@ -20,9 +21,10 @@ def tokenize(text):
 
 
 class BM25Engine:
-    def __init__(self, k1=1.2, b=0.75, delta=0.0, idf_type="rsj"):
+    def __init__(self, k1=1.2, b=0.75, k3=0.0, delta=0.0, idf_type="rsj"):
         self.k1 = k1
         self.b = b
+        self.k3 = k3
         self.delta = delta
         self.idf_type = idf_type
         self.N = 0
@@ -58,11 +60,13 @@ class BM25Engine:
         self.idf_cache = {}
         return self
 
-    def set_params(self, k1=None, b=None, delta=None, idf_type=None):
+    def set_params(self, k1=None, b=None, k3=None, delta=None, idf_type=None):
         if k1 is not None:
             self.k1 = k1
         if b is not None:
             self.b = b
+        if k3 is not None:
+            self.k3 = k3
         if delta is not None:
             self.delta = delta
         if idf_type is not None and idf_type != self.idf_type:
@@ -99,10 +103,13 @@ class BM25Engine:
         """返回 [(doc_id, score), ...]，按分数降序。"""
         if self.N == 0:
             return []
-        k1, b, delta, avgdl = self.k1, self.b, self.delta, self.avgdl
+        k1, b, k3, delta, avgdl = self.k1, self.b, self.k3, self.delta, self.avgdl
         dl = self._dl_float
         scores = np.zeros(self.N, dtype=np.float64)
+        qtf = {}
         for t in tokenize(query):
+            qtf[t] = qtf.get(t, 0) + 1
+        for t, qcount in qtf.items():
             post = self.postings.get(t)
             if post is None:
                 continue
@@ -111,6 +118,8 @@ class BM25Engine:
             # BM25 词频饱和项（向量化）：idf * f*(k1+1) / (f + k1*(1-b+b*dl/avgdl))
             denom = tf + k1 * (1 - b + b * dl[doc_idx] / avgdl) if avgdl > 0 else tf + k1
             part = idf_val * tf * (k1 + 1) / denom
+            if k3 > 0 and qcount > 1:  # 查询词频饱和项：f(q,Q)*(k3+1)/(f(q,Q)+k3)
+                part = part * (qcount * (k3 + 1) / (qcount + k3))
             if delta > 0:  # BM25+ 补偿项
                 part = part + idf_val * delta
             np.add.at(scores, doc_idx, part)

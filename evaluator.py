@@ -34,8 +34,11 @@ class _QueryPlan:
     def __init__(self, engine, query):
         self.N = engine.N
         self.avgdl = engine.avgdl
-        docs_list, tf_list, dl_list, idf_rsj, idf_smooth = [], [], [], [], []
+        docs_list, tf_list, dl_list, idf_rsj, idf_smooth, qtf_list = [], [], [], [], [], []
+        qtf = {}
         for t in tokenize(query):
+            qtf[t] = qtf.get(t, 0) + 1
+        for t, qcount in qtf.items():
             post = engine.postings.get(t)
             if post is None:
                 continue
@@ -44,26 +47,30 @@ class _QueryPlan:
             docs_list.append(d)
             tf_list.append(tf)
             dl_list.append(engine._dl_float[d])
+            qtf_list.append(np.full(d.shape, qcount))
             idf_rsj.append(np.full(d.shape, math.log((self.N - df + 0.5) / (df + 0.5))))
             idf_smooth.append(np.full(d.shape, math.log((self.N + 1) / (df + 1))))
         if not docs_list:
-            self.docs = self.tf = self.dl = self.idf = None
+            self.docs = self.tf = self.dl = self.qtf = self.idf = None
         else:
             self.docs = np.concatenate(docs_list)
             self.tf = np.concatenate(tf_list)
             self.dl = np.concatenate(dl_list)
+            self.qtf = np.concatenate(qtf_list)
             self.idf = {
                 "rsj": np.concatenate(idf_rsj),
                 "smoothed": np.concatenate(idf_smooth),
             }
 
-    def score(self, k1, b, delta, idf_type):
+    def score(self, k1, b, k3, delta, idf_type):
         """返回长度为 N 的分数向量（未匹配文档为 0）。"""
         if self.docs is None:
             return np.zeros(self.N, dtype=np.float64)
         avgdl = self.avgdl
         denom = self.tf + k1 * (1 - b + b * self.dl / avgdl) if avgdl > 0 else self.tf + k1
         part = self.idf[idf_type] * self.tf * (k1 + 1) / denom
+        if k3 > 0:  # 查询词频饱和项：f(q,Q)*(k3+1)/(f(q,Q)+k3)
+            part = part * (self.qtf * (k3 + 1) / (self.qtf + k3))
         if delta > 0:  # BM25+ 补偿项
             part = part + delta * self.idf[idf_type]
         # bincount 加权累加（重复 doc 索引自动求和，比 np.add.at 快得多）
@@ -133,6 +140,7 @@ def evaluate(docs, queries, qrels, params, top_k=100):
     engine.set_params(
         k1=params.get("k1"),
         b=params.get("b"),
+        k3=params.get("k3"),
         delta=params.get("delta"),
         idf_type=params.get("idf_type"),
     )
@@ -161,9 +169,10 @@ def grid_search(docs, queries, qrels, search_space=None, metric="ndcg@10", top_k
     results = []
     it = tqdm(combos, desc="grid search", mininterval=1.0) if progress else combos
     for params in it:
-        k1, b, delta, idf_type = (
+        k1, b, k3, delta, idf_type = (
             params["k1"],
             params["b"],
+            params.get("k3", 0.0),
             params["delta"],
             params["idf_type"],
         )
@@ -172,7 +181,7 @@ def grid_search(docs, queries, qrels, search_space=None, metric="ndcg@10", top_k
             rels = rel.get(q["qid"])
             if not rels:
                 continue
-            scores = plan.score(k1, b, delta, idf_type)
+            scores = plan.score(k1, b, k3, delta, idf_type)
             nonzero = np.flatnonzero(scores)
             if nonzero.size == 0:
                 mrr.append(0.0)
@@ -250,6 +259,20 @@ def _fit_coefficients(samples):
         y = np.array([s["best"]["delta"] for s in train])
         w, _ = nnls(X, y)
         coefs["gamma_delta"] = float(w[0])
+        # k3：查询内重复词越多 → k3 越大（无截距）
+        X = np.array(
+            [
+                [
+                    max(s["features"].get("avg_query_max_tf", 1.0) - 1.0, 0.0),
+                    s["features"].get("query_repeat_ratio", 0.0),
+                ]
+                for s in train
+            ]
+        )
+        y = np.array([s["best"].get("k3", 0.0) for s in train])
+        w, _ = nnls(X, y)
+        coefs["k3_base"] = float(w[0])
+        coefs["k3_rep"] = float(w[1]) if len(w) > 1 else 0.0
     return coefs
 
 
