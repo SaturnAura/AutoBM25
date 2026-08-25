@@ -25,7 +25,12 @@ def main():
     print("|---|---:|---:|---:|---:|---|")
     domains = {
         "arguana": "论点/议论文检索",
+        "climate-fever": "事实验证（超大规模）",
+        "dbpedia-entity": "实体链接检索（超大规模）",
+        "fever": "事实验证（超大规模）",
         "fiqa": "金融问答",
+        "hotpotqa": "多跳问答（超大规模）",
+        "msmarco": "网页检索（超大规模）",
         "nfcorpus": "医学信息检索",
         "nq": "开放域问答（超大规模）",
         "quora": "社区问答去重",

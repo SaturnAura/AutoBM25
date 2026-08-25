@@ -21,6 +21,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dict", default=DEFAULT_DICT_PATH)
     ap.add_argument("--benchmark", default=os.path.join("results", "benchmark_results.json"))
+    ap.add_argument("--mixes-benchmark",
+                    default=os.path.join("results", "benchmark_mixes.json"))
     ap.add_argument("--out", default=os.path.join("results", "experiment_dictionary_loo.json"))
     ap.add_argument("--thresholds", nargs="+", type=float,
                     default=[1.5, 2.0, 2.5, 3.0, 3.5, 4.0])
@@ -31,6 +33,11 @@ def main():
     entries = dict_data["entries"]
     with open(args.benchmark, encoding="utf-8") as f:
         bench = json.load(f)
+    if os.path.exists(args.mixes_benchmark):
+        with open(args.mixes_benchmark, encoding="utf-8") as f:
+            mixes = json.load(f)
+        for k, v in mixes.items():
+            bench[f"mix::{k}"] = v
     sample_path = os.path.join("results", "benchmark_grid_sample_eval.json")
     sample = {}
     if os.path.exists(sample_path):
@@ -42,7 +49,10 @@ def main():
     materials = {}
     for e in entries:
         name = e["name"]
-        r = bench[name]
+        r = bench.get(name)
+        if r is None:
+            print(f"[loo] 跳过 {name}（无 benchmark 条目）", flush=True)
+            continue
         docs, queries, qrels = load_dataset(r["path"])
         materials[name] = {
             "docs": docs,

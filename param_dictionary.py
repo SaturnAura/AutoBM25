@@ -176,31 +176,40 @@ class ParamDictionary:
 
 
 def build_dictionary(benchmark_path=os.path.join("results", "benchmark_results.json"),
-                     out_path=DEFAULT_DICT_PATH, k_neighbors=1, match_threshold=2.0):
+                     out_path=DEFAULT_DICT_PATH, k_neighbors=1, match_threshold=2.0,
+                     mixes_benchmark_path=os.path.join("results", "benchmark_mixes.json")):
     """从 benchmark 结果（含 features + grid_best_params）构建词典。
 
     特征在构建时重新提取（保证包含查询侧特征），参数取 grid search 最优。
     """
     with open(benchmark_path, encoding="utf-8") as f:
         res = json.load(f)
+    sources = [("", res)]
+    if os.path.exists(mixes_benchmark_path):
+        with open(mixes_benchmark_path, encoding="utf-8") as f:
+            sources.append(("mix", json.load(f)))
     entries = []
-    for name, r in res.items():
-        if "grid_best_params" not in r:
-            continue
-        docs, queries, _ = load_dataset(r["path"])
-        features = extract_features(docs, queries)
-        entries.append({
-            "name": name,
-            "features": features,
-            "params": {
-                **{k: r["grid_best_params"].get(k, 0.0) for k in CONTINUOUS_PARAMS},
-                "idf_type": r["grid_best_params"]["idf_type"],
-            },
-            "grid_num_queries": r.get("grid_num_queries"),
-            "grid_ndcg": r["grid_best_metrics"]["ndcg@10"],
-        })
-        print(f"[build_dictionary] {name}: {features['doc_count']} docs, "
-              f"params {entries[-1]['params']}")
+    for prefix, source in sources:
+        for name, r in source.items():
+            if "grid_best_params" not in r:
+                continue
+            features = r.get("features")
+            if features is None:
+                docs, queries, _ = load_dataset(r["path"])
+                features = extract_features(docs, queries)
+            entry_name = f"{prefix}::{name}" if prefix else name
+            entries.append({
+                "name": entry_name,
+                "features": features,
+                "params": {
+                    **{k: r["grid_best_params"].get(k, 0.0) for k in CONTINUOUS_PARAMS},
+                    "idf_type": r["grid_best_params"]["idf_type"],
+                },
+                "grid_num_queries": r.get("grid_num_queries"),
+                "grid_ndcg": r["grid_best_metrics"]["ndcg@10"],
+            })
+            print(f"[build_dictionary] {entry_name}: {features['doc_count']} docs, "
+                  f"params {entries[-1]['params']}")
     dictionary = ParamDictionary(entries, k_neighbors=k_neighbors,
                                  match_threshold=match_threshold)
     dictionary.save(out_path)
@@ -215,5 +224,8 @@ if __name__ == "__main__":
     ap.add_argument("--out", default=DEFAULT_DICT_PATH)
     ap.add_argument("--k-neighbors", type=int, default=1)
     ap.add_argument("--match-threshold", type=float, default=2.0)
+    ap.add_argument("--mixes-benchmark",
+                    default=os.path.join("results", "benchmark_mixes.json"))
     args = ap.parse_args()
-    build_dictionary(args.benchmark, args.out, args.k_neighbors, args.match_threshold)
+    build_dictionary(args.benchmark, args.out, args.k_neighbors,
+                     args.match_threshold, args.mixes_benchmark)

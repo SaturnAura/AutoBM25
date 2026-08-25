@@ -12,23 +12,40 @@
 import argparse
 import json
 import os
+import random
 import time
 
-from data_loader import load_dataset
+from data_loader import load_dataset, load_dataset_subsampled
 from evaluator import evaluate, grid_search
 from feature_extractor import extract_features
 from main import find_dataset_dirs
 from rule_predictor import load_config, predict, predict_with_dictionary
 
 
-def run_one(path, config, eval_queries=None, grid_queries=None, use_dict=False, grid_k3=None):
+def run_one(path, config, eval_queries=None, grid_queries=None, use_dict=False,
+            grid_k3=None, max_docs=None):
     name = os.path.basename(os.path.normpath(path))
     row = {"name": name, "path": os.path.abspath(path)}
 
     t0 = time.time()
-    docs, queries, qrels = load_dataset(path)
+    if max_docs and os.path.exists(os.path.join(path, "corpus.jsonl")):
+        # 超大数据集（BEIR 格式）：流式子采样，避免全量读入内存
+        docs, queries, qrels = load_dataset_subsampled(path, max_docs)
+        row["subsampled_docs"] = max_docs
+    else:
+        docs, queries, qrels = load_dataset(path)
     row["load_seconds"] = round(time.time() - t0, 1)
     row["num_queries"] = len(queries)
+    row["num_docs"] = len(docs)
+    if max_docs and len(docs) > max_docs:
+        rng = random.Random(42)
+        idx = sorted(rng.sample(range(len(docs)), max_docs))
+        docs = [docs[i] for i in idx]
+        valid = {d["id"] for d in docs}
+        qrels = [r for r in qrels if r["doc_id"] in valid]
+        row["subsampled_docs"] = max_docs
+        print(f"[{os.path.basename(os.path.normpath(path))}] 子采样 {max_docs} 文档"
+              f"（原 {row['num_queries']} 查询不变，qrels 过滤）", flush=True)
 
     t0 = time.time()
     features = extract_features(docs, queries)
@@ -89,6 +106,8 @@ def main():
     ap.add_argument("--grid-datasets", nargs="+", default=[], help="对这些数据集跑 grid search")
     ap.add_argument("--grid-queries", type=int, default=-1,
                     help="grid search 用查询数；-1 表示全部，缺省全部")
+    ap.add_argument("--max-docs", type=int, default=None,
+                    help="超大数据集子采样：文档数超过该值时，确定性采样并保持特征/评估一致")
     ap.add_argument("--grid-k3", nargs="+", default=None,
                     help="覆盖 grid 的 k3 搜索轴，如 --grid-k3 0 1.2 4")
     ap.add_argument("--use-dict", action="store_true",
@@ -99,7 +118,10 @@ def main():
     if args.all:
         paths = find_dataset_dirs("dataset")
     elif args.datasets:
-        paths = [os.path.join("dataset", d) for d in args.datasets]
+        paths = []
+        for d in args.datasets:
+            p = d if os.path.exists(d) else os.path.join("dataset", d)
+            paths.append(p)
     else:
         raise SystemExit("需要 --datasets 或 --all")
     if not paths:
@@ -112,6 +134,7 @@ def main():
             results = json.load(f)
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    grid_names = {os.path.basename(os.path.normpath(p)) for p in args.grid_datasets}
     for path in paths:
         name = os.path.basename(os.path.normpath(path))
         existing = results.get(name, {})
@@ -119,9 +142,10 @@ def main():
             path,
             config,
             eval_queries=args.eval_queries,
-            grid_queries=args.grid_queries if name in args.grid_datasets else None,
+            grid_queries=args.grid_queries if name in grid_names else None,
             use_dict=args.use_dict,
             grid_k3=args.grid_k3,
+            max_docs=args.max_docs,
         )
         # 合并而不是覆盖：重跑评估时保留已有的 grid 结果等字段
         results[name] = {**existing, **row}

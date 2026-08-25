@@ -7,6 +7,7 @@
 
 import json
 import os
+import random
 
 
 def load_jsonl(path):
@@ -103,3 +104,110 @@ def save_dataset(path, docs, queries, qrels):
     with open(os.path.join(path, "qrels.jsonl"), "w", encoding="utf-8") as f:
         for r in qrels:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
+
+
+def load_dataset_subsampled(path, max_docs, seed=42):
+    """流式加载并分层子采样文档（相关性标注优先保留）。
+
+    用于超大数据集（如 msmarco 880 万文档）：不把全部文档读入内存，
+    先读 qrels 拿到相关文档集合，流式扫描语料时**保留全部相关文档**，
+    其余文档用 reservoir sampling 补足到 max_docs 篇——避免随机采样
+    把稀疏标注的相关文档全部丢弃（如 climate-fever）。
+    """
+    rng = random.Random(seed)
+
+    # 1) 先读 qrels，收集相关文档 id 与全部标注
+    qrels_all = []
+    relevant_ids = set()
+    qrels_path = os.path.join(path, "qrels.jsonl")
+    if os.path.exists(qrels_path):
+        with open(qrels_path, encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                row = json.loads(line)
+                rel = int(row["relevance"])
+                qrels_all.append({"qid": str(row["qid"]), "doc_id": str(row["doc_id"]),
+                                 "relevance": rel})
+                if rel > 0:
+                    relevant_ids.add(str(row["doc_id"]))
+    else:
+        qrels_dir = os.path.join(path, "qrels")
+        if os.path.isdir(qrels_dir):
+            for fn in sorted(os.listdir(qrels_dir)):
+                if not fn.endswith(".tsv"):
+                    continue
+                with open(os.path.join(qrels_dir, fn), encoding="utf-8") as f:
+                    header = f.readline().strip().lower().split("\t")
+
+                    def col(name):
+                        variants = {
+                            "qid": ("qid", "query-id", "query_id", "queryid"),
+                            "doc_id": ("corpus_id", "corpus-id", "doc_id", "doc-id", "docid"),
+                            "score": ("score", "relevance", "rel"),
+                        }
+                        for i, h in enumerate(header):
+                            if h in variants[name]:
+                                return i
+                        return None
+
+                    i_q, i_d, i_s = col("qid"), col("doc_id"), col("score")
+                    for line in f:
+                        parts = line.strip().split("\t")
+                        if i_q is None or i_d is None or i_s is None or \
+                                len(parts) <= max(i_q, i_d, i_s):
+                            continue
+                        rel = int(parts[i_s])
+                        qrels_all.append({"qid": parts[i_q], "doc_id": parts[i_d],
+                                          "relevance": rel})
+                        if rel > 0:
+                            relevant_ids.add(parts[i_d])
+
+    # 2) 流式扫描语料：相关文档全保留，其余 reservoir 采样补足
+    docs = []
+    nonrel = []
+    corpus_path = os.path.join(path, "docs.jsonl")
+    if not os.path.exists(corpus_path):
+        corpus_path = os.path.join(path, "corpus.jsonl")
+    budget = max_docs - min(len(relevant_ids), max_docs)
+    rel_count = 0
+    nonrel_seen = 0
+    with open(corpus_path, encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            doc_id = str(row.get("id", row.get("_id")))
+            text = row.get("text", "")
+            if row.get("title"):
+                text = row["title"] + " " + text
+            if doc_id in relevant_ids:
+                if rel_count < max_docs:
+                    rel_count += 1
+                    docs.append({"id": doc_id, "text": text})
+            elif budget > 0:
+                nonrel_seen += 1
+                if len(nonrel) < budget:
+                    nonrel.append({"id": doc_id, "text": text})
+                else:
+                    j = rng.randrange(nonrel_seen)
+                    if j < budget:
+                        nonrel[j] = {"id": doc_id, "text": text}
+    docs.extend(nonrel)
+    docs = docs[:max_docs]
+
+    # 3) 查询全量加载
+    queries = []
+    with open(os.path.join(path, "queries.jsonl"), encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            queries.append({
+                "qid": str(row.get("qid", row.get("_id"))),
+                "query": row.get("query", row.get("text", "")),
+            })
+
+    valid = {d["id"] for d in docs}
+    qrels = [r for r in qrels_all if r["doc_id"] in valid and r["relevance"] > 0]
+    return docs, queries, qrels
