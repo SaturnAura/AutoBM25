@@ -28,7 +28,6 @@ AutoBM25 takes a different path: **optimal parameters are a function of the corp
 
 | Dataset | Domain | NDCG@10 gain |
 |---|---|---:|
-| trec-covid-v2 | COVID-19 scientific literature (129K docs) | **+93.7%** |
 | webis-touche2020 | Argument retrieval (383K docs) | **+26.5%** |
 | trec-covid / trec-covid-beir | COVID-19 scientific literature (171K docs) | +22.2% |
 | fever | Fact verification (5.4M docs) | +19.2% |
