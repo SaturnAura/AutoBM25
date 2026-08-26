@@ -12,8 +12,8 @@
 
 import argparse
 import os
+import sys
 
-from data_augmentation import augment_dataset
 from bm25_engine import BM25Engine
 from data_loader import load_dataset, load_dataset_subsampled
 from evaluator import calibrate, evaluate, grid_search
@@ -103,6 +103,11 @@ def cmd_eval(args):
 
 
 def cmd_augment(args):
+    _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    _research = os.path.join(_root, "research")
+    if _research not in sys.path:
+        sys.path.insert(0, _research)
+    from data_augmentation import augment_dataset
     generated = augment_dataset(args.dataset)
     print(f"[augment] 生成了 {len(generated)} 个增强数据集:")
     for p in generated:

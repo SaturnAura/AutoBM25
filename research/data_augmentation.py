@@ -11,8 +11,12 @@ import json
 import os
 import random
 import shutil
+import sys
 
 import numpy as np
+
+# 让 research/ 下的脚本能导入 src/ 中的模块（从仓库根运行）
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 from bm25_engine import tokenize
 from data_loader import load_dataset, save_dataset

@@ -15,6 +15,10 @@
 import argparse
 import json
 import os
+import sys
+
+# 让 research/ 下的脚本能导入 src/ 中的模块（从仓库根运行）
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 from param_dictionary import DEFAULT_DICT_PATH, ParamDictionary
 from rule_predictor import load_config, predict

@@ -3,7 +3,3 @@ __pycache__/
 *.pyc
 results/*
 document/*
-# 实验基准数据（重建词典/复现实验必需）随仓库提交
-# !results/benchmark_results.json
-# !results/benchmark_mixes.json
-# !results/benchmark_grid_sample_eval.json

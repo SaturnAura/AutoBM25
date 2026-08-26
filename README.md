@@ -24,27 +24,19 @@ AutoBM25 换了一条路：**最优参数是语料统计结构的函数**，而�
 
 ## 数值提升（16 个 BEIR 数据集）
 
-| 指标                     |                                                                 结果 |
-| ------------------------ | -------------------------------------------------------------------: |
-| 优于默认参数的数据集     | **13/16**（纯启发式）；**16/16**（词典优先，不劣于默认） |
-| 平均提升                 |    MRR@10**+9.4%** · NDCG@10**+11.6%** · Recall@100**+5.6%** |
-| 词典命中率（LOO）        |                                             **88.9%**（27/30） |
-| dict+回退 达到 grid 上界 |                                                      **90.1%** |
-| 单数据集最大提升         |             trec-covid-v2 NDCG@10**+93.7%**；fever +19.2%；nq +17.5% |
-| 词典规模                 |                         **30 条目**（12 真实语料 + 18 拼接体） |
-
 **代表性提升（BEIR 数据集，NDCG@10）**
 
-| 数据集 | 领域 | NDCG@10 提升 |
-|---|---|---:|
-| trec-covid-v2 | COVID-19 学术文献（13 万文档） | **+93.7%** |
-| webis-touche2020 | 论点检索（38 万文档） | **+26.5%** |
-| trec-covid / trec-covid-beir | COVID-19 学术文献（17 万文档） | +22.2% |
-| fever | 事实验证（540 万文档） | +19.2% |
-| nq | 开放域问答（268 万文档） | +17.5% |
-| scifact | 科学论断证据 | +8.2% |
-| dbpedia-entity | 实体链接检索（460 万文档） | +7.7% |
-| msmarco | 网页检索（884 万文档） | +2.4% |
+| 数据集                       | 领域                           |     NDCG@10 提升 |
+| ---------------------------- | ------------------------------ | ---------------: |
+| trec-covid-v2                | COVID-19 学术文献（13 万文档） | **+93.7%** |
+| webis-touche2020             | 论点检索（38 万文档）          | **+26.5%** |
+| trec-covid / trec-covid-beir | COVID-19 学术文献（17 万文档） |           +22.2% |
+| fever                        | 事实验证（540 万文档）         |           +19.2% |
+| nq                           | 开放域问答（268 万文档）       |           +17.5% |
+| scifact                      | 科学论断证据                   |            +8.2% |
+| dbpedia-entity               | 实体链接检索（460 万文档）     |            +7.7% |
+| msmarco                      | 网页检索（884 万文档）         |            +2.4% |
+| **平均（16 个数据集）**      | —                              | **MRR@10 +9.4% · NDCG@10 +11.6% · Recall@100 +5.6%** |
 
 ## 快速开始
 
@@ -57,7 +49,7 @@ python src/main.py --dataset dataset/XXX --search "查询词"
 # 交互式检索：输入查询 → 回车出结果，exit 退出
 python src/main.py --dataset dataset/XXX --interactive
 
-# 其他：只看参数 / 评估 default vs predicted
+# 其他：predict = 只看这个数据集该用什么参数；eval = 用标注衡量检索效果（default vs predicted）
 python src/main.py --dataset dataset/XXX --predict
 python src/main.py --dataset dataset/XXX --eval
 ```
@@ -84,29 +76,6 @@ qrels/*.tsv     # 表头 query-id \t corpus-id \t score（也兼容 qid / corpus
 
 纯检索时只需要 `docs.jsonl`（或 `corpus.jsonl`）即可，查询可以交互式输入，qrels 可缺省。大字典在 [`dictionary/param_dictionary.json`](dictionary/param_dictionary.json)，克隆即用，无需先跑实验。
 
-## 进阶用法（复现与开发）
-
-```bash
-# 重建参数大字典（基于本地 results/ 的基准数据；默认不随仓库提交，
-# 克隆后开箱即用随仓库提交的 30 条目词典，无需先跑实验）
-python src/main.py --build-dict
-
-# 批量实验：全数据集 特征 → 预测 → 评估（超大数据集自动分层子采样）
-python src/run_experiments.py --all --eval-queries -1 --max-docs 200000
-
-# 结果汇总为 Markdown 表格
-python src/summarize_results.py
-
-# 专项工具：词典命中率分析 / 留一法评估 / 拼接增强 / k3 消融 / 混合语料测试
-python src/analyze_dictionary.py
-python src/evaluate_dictionary.py
-python src/mix_corpora.py
-python src/experiment_k3.py
-python src/mega_corpus.py
-```
-
-所有实现模块位于 `src/`，命令统一从仓库根目录执行。
-
 ## 局限
 
 - **分布外（OOD）**：当新语料特征超出词典训练覆盖（超长查询、跨域混合语料等）时，查表自动回退启发式——极端/混合场景下规则仍可能弱于默认参数。
@@ -116,7 +85,8 @@ python src/mega_corpus.py
 
 ```
 autobm25/
-├── src/                  # 全部实现模块（CLI、引擎、特征、词典、实验脚本）
+├── src/                  # 即开即用的检索模块（CLI、引擎、特征、词典、评估）
+├── research/             # 复现/实验脚本（批量实验、消融、词典评估、数据增强等）
 ├── dictionary/           # 参数大字典 param_dictionary.json（30 条目，随仓库提交）
 ├── logo/                 # 项目 logo
 ├── config.yaml           # 启发式系数、默认参数、grid/增强/词典配置
