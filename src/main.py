@@ -155,7 +155,7 @@ def cmd_interactive(args):
             print("  （无匹配结果）")
             continue
         print(f"[AutoBM25] 查询「{q}」→ Top {len(hits)} 结果（分数越高越相关）：")
-        print(f"  {'排名':>4}  {'得分':>12}  文档ID")
+        print(f"  {'Rank':>4}  {'Score':>12}  Docid")
         for i, (doc_id, score) in enumerate(hits, 1):
             print(f"  {i:>4}  {score:>12.4f}  {doc_id}")
 
