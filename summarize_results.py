@@ -33,7 +33,6 @@ def main():
         "msmarco": "网页检索（超大规模）",
         "nfcorpus": "医学信息检索",
         "nq": "开放域问答（超大规模）",
-        "quora": "社区问答去重",
         "scidocs": "科学文献检索",
         "scifact": "科学论断证据",
         "trec-covid": "COVID 学术文献",

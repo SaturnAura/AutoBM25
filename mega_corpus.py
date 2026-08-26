@@ -20,7 +20,7 @@ from param_dictionary import DEFAULT_DICT_PATH, ParamDictionary
 from rule_predictor import load_config, predict
 
 DEFAULT_DATASETS = [
-    "arguana", "fiqa", "nfcorpus", "quora", "scidocs", "scifact",
+    "arguana", "fiqa", "nfcorpus", "nq", "scidocs", "scifact",
     "trec-covid", "trec-covid-v2", "vihealthqa", "webis-touche2020",
 ]
 

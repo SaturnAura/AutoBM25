@@ -20,16 +20,29 @@ DATASETS = [
     "dbpedia-entity", "climate-fever", "fever", "hotpotqa", "msmarco",
 ]
 
-# 固定 8 个混合配方（组合不同领域/查询类型）
+# 固定 20 个混合配方（组合不同领域/查询类型；quora 已按结论移除）
 RECIPES = [
     ["fiqa", "nfcorpus", "scifact"],
     ["trec-covid", "scidocs", "scifact"],
     ["webis-touche2020", "arguana"],
-    ["nq", "quora"],
+    ["nq", "msmarco"],
     ["fever", "climate-fever"],
     ["dbpedia-entity", "hotpotqa"],
-    ["fiqa", "webis-touche2020", "quora"],
+    ["fiqa", "webis-touche2020", "nq"],
     ["nfcorpus", "vihealthqa", "scifact"],
+    # 扩充批次（mix08–mix19）：纳入超大规模语料
+    ["msmarco", "nfcorpus"],
+    ["msmarco", "fiqa"],
+    ["fever", "scifact"],
+    ["climate-fever", "scifact"],
+    ["hotpotqa", "nq"],
+    ["hotpotqa", "scidocs"],
+    ["dbpedia-entity", "webis-touche2020"],
+    ["trec-covid", "webis-touche2020"],
+    ["fiqa", "vihealthqa", "scifact"],
+    ["msmarco", "scifact"],
+    ["fever", "hotpotqa", "climate-fever"],
+    ["nfcorpus", "scidocs", "scifact", "trec-covid"],
 ]
 
 
