@@ -1,97 +1,101 @@
-# AutoBM25 —— 零标注、零调参的 BM25 超参数自适应
+# AutoBM25 — Zero-Label, Zero-Tuning BM25 Hyperparameter Adaptation
 
 ![AutoBM25 logo](logo/logo.png)
 
-> 输入任意语料的**统计特征** → **O(1) 大字典查表**直接得到最优 BM25 超参数（k1 / b / k3 / δ / IDF）；查不到就启发式兜底。16 个 BEIR 数据集验证：**16/16 不劣于默认参数、平均 NDCG@10 +11.6%、词典命中率 88.9%**。
+> Feed the corpus's **statistical features** into an **O(1) parameter dictionary** and get the optimal BM25 hyperparameters (k1 / b / k3 / δ / IDF) directly; fall back to interpretable heuristics when nothing matches. Verified on 16 BEIR datasets: **16/16 never worse than defaults, average NDCG@10 +11.6%, dictionary hit rate 88.9%**.
 
-> 😄 或许我们应该叫 **BM26**？——参数都能自适应了，版本号也自适一下（开个玩笑，BM25 还是 BM25）。
+> 😄 Maybe we should call it **BM26**? — if the hyperparameters can adapt, so can the version number (just kidding, BM25 is BM25).
 
 ---
 
-## 为什么需要它
+## Why
 
-BM25 是信息检索最常用的排序模型，但它的**最优超参数随语料变化极大**——短文本、长文本、代码、法律文书、问答社区，各自的最优 k1/b 完全不同。实际工程却永远用 `k1=1.2, b=0.75` 的默认值，因为调参需要带标注的验证集，而新语料往往**没有标注**。
+BM25 is the most widely used ranking model in information retrieval, but its **optimal hyperparameters vary dramatically across corpora** — short texts, long texts, code, legal documents, Q&A communities each need different k1/b values. In practice, everyone uses the fixed defaults `k1=1.2, b=0.75`, because tuning requires a labeled validation set, and **new corpora rarely have labels**.
 
-AutoBM25 换了一条路：**最优参数是语料统计结构的函数**，而统计结构不需要标注就能测量。测量出 18 维统计特征，查表即得参数——零标注、零调参、常数时间。
+AutoBM25 takes a different path: **optimal parameters are a function of the corpus's statistical structure, and statistical structure can be measured without any labels.** Measure 18 features, look up the parameters — zero labels, zero tuning, constant time.
 
-## 亮点
+## Highlights
 
-- 🗂️ **18 维统计特征**（P0/P1/P2）：文档长度分布、词频冗余度、词汇增长曲线、查询侧特征——每个特征都有明确的"机制假设"（为什么它能预测某个参数）
-- ⚡ **O(1) 参数大字典**：`特征向量 → 最优参数` 最近邻查表，含**分布外（OOD）防护**与**启发式回退**；30 个条目随仓库提交，每新增一个做过 grid search 的数据集就多一条经验
-- 🔧 **k3 查询词频饱和项**：消融试验确认有效，长查询场景相对提升最高 **+19.9%**
-- 🧩 **多语料拼接（Mixing）**：把已有语料组合拼接生成"跨域样本"，主动在特征空间补点，词典命中率 **70.6% → 88.9%**
-- 🚀 **规模验证到 884 万文档**（msmarco），全自研 numpy 向量化 BM25/BM25+ 引擎，超大数据集流式子采样、相关标注全保留
+- 🗂️ **18 statistical features** (P0/P1/P2): document length distribution, term-frequency redundancy, vocabulary growth, query-side statistics — each with an explicit "mechanism hypothesis" (why it predicts a given parameter)
+- ⚡ **O(1) parameter dictionary**: nearest-neighbor lookup from feature vectors to optimal parameters, with **out-of-distribution (OOD) guard** and **heuristic fallback**; 30 entries shipped with the repo, growing with every new grid-searched dataset
+- 🔧 **k3 query-term-frequency saturation**: ablation-verified, up to **+19.9%** on long-query scenarios
+- 🧩 **Corpus mixing**: combine existing corpora into cross-domain blends to fill feature-space gaps; dictionary hit rate **70.6% → 88.9%**
+- 🚀 **Scales to 8.84M documents** (msmarco); self-built numpy-vectorized BM25/BM25+ engine with streaming stratified subsampling that keeps all relevant annotations
 
-## 数值提升（16 个 BEIR 数据集）
+## Results (16 BEIR datasets)
 
-**代表性提升（BEIR 数据集，NDCG@10）**
+**Representative improvements (BEIR datasets, NDCG@10)**
 
-| 数据集                        | 领域                           |                                                 NDCG@10 提升 |
-| ----------------------------- | ------------------------------ | -----------------------------------------------------------: |
-| trec-covid-v2                 | COVID-19 学术文献（13 万文档） |                                             **+93.7%** |
-| webis-touche2020              | 论点检索（38 万文档）          |                                             **+26.5%** |
-| trec-covid / trec-covid-beir  | COVID-19 学术文献（17 万文档） |                                                       +22.2% |
-| fever                         | 事实验证（540 万文档）         |                                                       +19.2% |
-| nq                            | 开放域问答（268 万文档）       |                                                       +17.5% |
-| scifact                       | 科学论断证据                   |                                                        +8.2% |
-| dbpedia-entity                | 实体链接检索（460 万文档）     |                                                        +7.7% |
-| msmarco                       | 网页检索（884 万文档）         |                                                        +2.4% |
-| **平均（16 个数据集）** | —                             | **MRR@10 +9.4% · NDCG@10 +11.6% · Recall@100 +5.6%** |
+| Dataset | Domain | NDCG@10 gain |
+|---|---|---:|
+| trec-covid-v2 | COVID-19 scientific literature (129K docs) | **+93.7%** |
+| webis-touche2020 | Argument retrieval (383K docs) | **+26.5%** |
+| trec-covid / trec-covid-beir | COVID-19 scientific literature (171K docs) | +22.2% |
+| fever | Fact verification (5.4M docs) | +19.2% |
+| nq | Open-domain QA (2.7M docs) | +17.5% |
+| scifact | Scientific claim evidence | +8.2% |
+| dbpedia-entity | Entity linking retrieval (4.6M docs) | +7.7% |
+| msmarco | Web search (8.8M docs) | +2.4% |
+| **Average (16 datasets)** | — | **MRR@10 +9.4% · NDCG@10 +11.6% · Recall@100 +5.6%** |
 
-## 快速开始
+## Quick Start
 
 ```bash
 pip install -r requirements.txt
 
-# 批量检索：跑完 dataset/XXX/queries.jsonl 的全部查询，
-# 结果写回 dataset/XXX/results.jsonl；有 qrels 时自动附带评测（evaluation.json）
+# Batch retrieval: run all queries in dataset/XXX/queries.jsonl,
+# write results back to dataset/XXX/results.jsonl; auto-evaluates if qrels exist
 python src/main.py --dataset dataset/XXX
 
-# 交互式检索：显示输入栏，输入查询 → 回车出结果，exit 退出
+# Interactive retrieval: type a query, press Enter, exit with "exit"
 python src/main.py --dataset dataset/XXX --interactive
 ```
 
-启动时会打印一条日志，显示本数据集自适应选择的 BM25 超参数（如 `k1=0.5 b=0.495 k3=0.7 δ=0.97 idf=smoothed`）。
+On startup a log line shows the hyperparameters chosen for this dataset (e.g., `k1=0.5 b=0.495 k3=0.7 δ=0.97 idf=smoothed`).
 
-## 数据格式
+## Data Formats
 
-数据集放在 `dataset/XXX/` 目录下，支持两种格式（自动识别）：
+Datasets live in `dataset/XXX/`; both formats are auto-detected:
 
-**标准格式**
-
-```
-docs.jsonl      # 每行 {"id": "...", "text": "..."}
-queries.jsonl   # 每行 {"qid": "...", "query": "..."}
-qrels.jsonl     # 每行 {"qid": "...", "doc_id": "...", "relevance": 1}
-```
-
-**BEIR 格式**
+**Standard format**
 
 ```
-corpus.jsonl    # 每行 {"_id": "...", "title": "...", "text": "..."}
-queries.jsonl   # 每行 {"_id": "...", "text": "..."}
-qrels/*.tsv     # 表头 query-id \t corpus-id \t score（也兼容 qid / corpus_id 命名）
+docs.jsonl      # one line per doc: {"id": "...", "text": "..."}
+queries.jsonl   # {"qid": "...", "query": "..."}
+qrels.jsonl     # {"qid": "...", "doc_id": "...", "relevance": 1}
 ```
 
-纯检索时只需要 `docs.jsonl`（或 `corpus.jsonl`）即可，查询可以交互式输入，qrels 可缺省。大字典在 [`dictionary/param_dictionary.json`](dictionary/param_dictionary.json)，克隆即用，无需先跑实验。
+**BEIR format**
 
-## 局限
+```
+corpus.jsonl    # {"_id": "...", "title": "...", "text": "..."}
+queries.jsonl   # {"_id": "...", "text": "..."}
+qrels/*.tsv     # header: query-id \t corpus-id \t score (also accepts qid / corpus_id)
+```
 
-- **分布外（OOD）**：当新语料特征超出词典训练覆盖（超长查询、跨域混合语料等）时，查表自动回退启发式——极端/混合场景下规则仍可能弱于默认参数。
-- **非英文语料**：特征含英文停用词密度等语言相关项，非英文语料（如越南语 vihealthqa）需要语言无关特征或独立分册。
+For retrieval only, `docs.jsonl` (or `corpus.jsonl`) is enough — queries can be typed interactively and qrels are optional.
 
-## 项目结构
+## Limitations
+
+- **Out-of-distribution (OOD)**: when a new corpus's features fall outside the dictionary's training coverage (e.g., extremely long queries or cross-domain blends), lookup falls back to heuristics — rules can still underperform defaults in extreme/mixed scenarios.
+- **Non-English corpora**: features include English-stopword-density and other language-dependent terms; non-English corpora (e.g., Vietnamese vihealthqa) need language-agnostic features or a separate section of the dictionary.
+
+## Project Structure
 
 ```
 autobm25/
-├── src/                  # 即开即用的检索模块（CLI、引擎、特征、词典、评估）
-├── dictionary/           # 参数大字典 param_dictionary.json（30 条目，随仓库提交）
-├── logo/                 # 项目 logo
-├── config.yaml           # 启发式系数、默认参数、grid/增强/词典配置
+├── src/                  # User-facing retrieval modules (CLI, engine, features, dictionary, evaluation)
+├── dictionary/           # Parameter dictionary param_dictionary.json (30 entries, shipped with the repo)
+├── logo/                 # Project logo
+├── config.yaml           # Heuristic coefficients, defaults, grid/augmentation/dictionary settings
 ├── requirements.txt
 └── README.md
 ```
 
 ## License
 
-本项目采用 [MIT License](LICENSE)：代码可**自由复制、修改、商用**，唯一要求是在副本中**保留版权声明与本许可文本**（即"使用请注明出处"）。引用本项目时附上仓库链接即可满足要求。
+[MIT License](LICENSE): the code can be freely **copied, modified, and used commercially**; the only requirement is to **retain the copyright notice and this license text** in copies (i.e., attribution). Linking the repository when using the project satisfies this requirement.
+
+---
+
+🇨🇳 中文版：[README.md.cn](README.md.cn)
