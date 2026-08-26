@@ -135,7 +135,7 @@ idf   = smoothed（若 heaps_beta>0.7 或 hapax_ratio>0.6），否则 rsj
 
 ### 3.3 参数大字典（param_dictionary.py）
 
-- **构建**：每个做过 grid search 的数据集保存（特征, 最优参数, 上界指标），并记录特征归一化统计量（mean/std/min/max）→ `results/param_dictionary.json`；
+- **构建**：每个做过 grid search 的数据集保存（特征, 最优参数, 上界指标），并记录特征归一化统计量（mean/std/min/max）→ **`dictionary/param_dictionary.json`**（独立目录、随仓库提交，`python main.py --build-dict` 可重建）；
 - **查表（O(1)）**：归一化欧氏距离最近邻，距离 ≤ `match_threshold`（默认 2.0）命中；k 近邻可做连续参数平均 + IDF 多数票；
 - **OOD 防护**：≥ `oov_min_features`（默认 2）个特征超出训练覆盖范围 → 拒绝命中、回退启发式。防止把极端语料的最优参数（如 webis 的 b=0.0）硬套到结构不同的新语料（如混合语料）上；
 - **诊断接口 `probe()`**：返回 OOD 状态、最近距离、最近条目，用于可解释的命中率审计。
@@ -326,6 +326,8 @@ pip install -r requirements.txt
 # 单数据集预测（词典优先 + 回退）与评估
 python main.py --dataset dataset/XXX --predict
 python main.py --dataset dataset/XXX --eval --no-dict        # 只用启发式
+python main.py --dataset dataset/XXX --eval --grid --limit-queries 100 \
+    --grid-k3 0 1.2 4                                        # grid 上界（可缩 k3 轴加速）
 
 # 批量实验 + 结果汇总（README 表格入口）
 python run_experiments.py --all --eval-queries -1 --max-docs 200000
@@ -346,12 +348,13 @@ python experiment_k3.py
 python mega_corpus.py --eval-queries 500 --skip-build
 ```
 
-数据格式支持标准格式（docs/queries/qrels.jsonl）与 BEIR 格式（corpus.jsonl / qrels/*.tsv，自动识别 `_id`/`qid` 与 `query-id/corpus-id` 表头）。中间结果全部存 `results/`（gitignored）。
+数据格式支持标准格式（docs/queries/qrels.jsonl）与 BEIR 格式（corpus.jsonl / qrels/*.tsv，自动识别 `_id`/`qid` 与 `query-id/corpus-id` 表头）。**`dictionary/param_dictionary.json` 随仓库提交**（大字典开箱即用）；**三个实验基准数据**（`results/benchmark_results.json`、`results/benchmark_mixes.json`、`results/benchmark_grid_sample_eval.json`）也随仓库提交，因此 `--build-dict` 与命中率分析在克隆后可直接复现；其余中间产物（LOO 报告、命中率报告、大 grid 结果等）存 `results/`（gitignored，可用脚本重建）。
 
 ## 9. 项目结构
 
 ```
 autobm25/
+├── dictionary/             # 参数大字典 param_dictionary.json（随仓库提交）
 ├── main.py                 # CLI（predict / eval / augment / calibrate / build-dict）
 ├── config.yaml             # 系数、默认参数、grid/增强/词典参数
 ├── data_loader.py          # 加载（标准 + BEIR），超大规模流式子采样（分层保相关标注）

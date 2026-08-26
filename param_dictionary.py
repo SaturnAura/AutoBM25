@@ -17,7 +17,8 @@ import numpy as np
 from data_loader import load_dataset
 from feature_extractor import extract_features
 
-DEFAULT_DICT_PATH = os.path.join("results", "param_dictionary.json")
+# 词典放在独立目录，随仓库提交（results/ 被 gitignore，不能放中间产物里）
+DEFAULT_DICT_PATH = os.path.join("dictionary", "param_dictionary.json")
 
 # 用于匹配的特征（P0/P1/P2 全部数值特征；缺失维度在计算距离时跳过）
 FEATURE_KEYS = [

@@ -74,8 +74,11 @@ def cmd_eval(args):
         base, pred = default_metrics[metric], pred_metrics[metric]
         report[f"improve_vs_default_{metric}"] = (pred - base) / base * 100 if base > 0 else 0.0
     if args.grid:
+        space = dict(config["grid_search"])
+        if args.grid_k3:
+            space["k3"] = [float(v) for v in args.grid_k3]
         gs = grid_search(
-            docs, queries, qrels, config["grid_search"],
+            docs, queries, qrels, space,
             metric=config["grid_search"]["metric"],
             top_k=config["grid_search"]["top_k"],
             limit_queries=args.limit_queries,
@@ -119,10 +122,10 @@ def cmd_calibrate(args):
 
 
 def cmd_build_dict(args):
-    from param_dictionary import build_dictionary
+    from param_dictionary import DEFAULT_DICT_PATH, build_dictionary
     build_dictionary(
         benchmark_path=os.path.join(args.out_dir, "benchmark_results.json"),
-        out_path=os.path.join(args.out_dir, "param_dictionary.json"),
+        out_path=DEFAULT_DICT_PATH,
         k_neighbors=args.dict_k,
         match_threshold=args.dict_threshold,
     )
@@ -149,6 +152,8 @@ def main():
     parser.add_argument("--test-frac", type=float, default=0.2, help="标定时留出的测试集比例")
     parser.add_argument("--limit-queries", type=int, default=None,
                         help="grid search 时最多使用的查询数（大数据集加速用）")
+    parser.add_argument("--grid-k3", nargs="+", default=None,
+                        help="覆盖 grid 的 k3 搜索轴，如 --grid-k3 0 1.2 4")
     parser.add_argument("--no-progress", action="store_true", help="关闭 tqdm 进度条")
     parser.add_argument("--out-dir", default="results", help="结果 json 输出目录")
     args = parser.parse_args()

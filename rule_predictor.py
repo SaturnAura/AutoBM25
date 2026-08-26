@@ -84,7 +84,7 @@ def predict(features, config=None):
 def predict_with_dictionary(features, config=None, dictionary=None):
     """先查参数词典（命中返回词典参数），未命中回退到启发式规则。"""
     if dictionary is None:
-        dict_path = os.path.join(os.path.dirname(__file__), "results", "param_dictionary.json")
+        dict_path = os.path.join(os.path.dirname(__file__), "dictionary", "param_dictionary.json")
         if os.path.exists(dict_path):
             from param_dictionary import ParamDictionary
             dictionary = ParamDictionary.load(dict_path)
