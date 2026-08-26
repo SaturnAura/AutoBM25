@@ -42,11 +42,12 @@ def load_dataset(path):
             docs.append({"id": str(row["_id"]), "text": text})
 
     queries_path = os.path.join(path, "queries.jsonl")
-    for row in load_jsonl(queries_path):
-        qid = row.get("qid", row.get("_id"))
-        queries.append(
-            {"qid": str(qid), "query": row.get("query", row.get("text", ""))}
-        )
+    if os.path.exists(queries_path):
+        for row in load_jsonl(queries_path):
+            qid = row.get("qid", row.get("_id"))
+            queries.append(
+                {"qid": str(qid), "query": row.get("query", row.get("text", ""))}
+            )
 
     qrels_path = os.path.join(path, "qrels.jsonl")
     if os.path.exists(qrels_path):
@@ -198,15 +199,17 @@ def load_dataset_subsampled(path, max_docs, seed=42):
 
     # 3) 查询全量加载
     queries = []
-    with open(os.path.join(path, "queries.jsonl"), encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            queries.append({
-                "qid": str(row.get("qid", row.get("_id"))),
-                "query": row.get("query", row.get("text", "")),
-            })
+    queries_path = os.path.join(path, "queries.jsonl")
+    if os.path.exists(queries_path):
+        with open(queries_path, encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                row = json.loads(line)
+                queries.append({
+                    "qid": str(row.get("qid", row.get("_id"))),
+                    "query": row.get("query", row.get("text", "")),
+                })
 
     valid = {d["id"] for d in docs}
     qrels = [r for r in qrels_all if r["doc_id"] in valid and r["relevance"] > 0]

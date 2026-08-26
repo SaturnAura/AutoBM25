@@ -24,30 +24,65 @@ AutoBM25 换了一条路：**最优参数是语料统计结构的函数**，而�
 
 ## 数值提升（16 个 BEIR 数据集）
 
-| 指标                     |                                                                     结果 |
-| ------------------------ | -----------------------------------------------------------------------: |
-| 优于默认参数的数据集     |     **13/16**（纯启发式）；**16/16**（词典优先，不劣于默认） |
-| 平均提升                 | MRR@10**+9.4%** · NDCG@10**+11.6%** · Recall@100 **+5.6%** |
-| 词典命中率（LOO）        |                                                 **88.9%**（27/30） |
-| dict+回退 达到 grid 上界 |                                                          **90.1%** |
-| 单数据集最大提升         |                 trec-covid-v2 NDCG@10**+93.7%**；fever +19.2%；nq +17.5% |
-| 词典规模                 |                             **30 条目**（12 真实语料 + 18 拼接体） |
+| 指标                     |                                                                 结果 |
+| ------------------------ | -------------------------------------------------------------------: |
+| 优于默认参数的数据集     | **13/16**（纯启发式）；**16/16**（词典优先，不劣于默认） |
+| 平均提升                 |    MRR@10**+9.4%** · NDCG@10**+11.6%** · Recall@100**+5.6%** |
+| 词典命中率（LOO）        |                                             **88.9%**（27/30） |
+| dict+回退 达到 grid 上界 |                                                      **90.1%** |
+| 单数据集最大提升         |             trec-covid-v2 NDCG@10**+93.7%**；fever +19.2%；nq +17.5% |
+| 词典规模                 |                         **30 条目**（12 真实语料 + 18 拼接体） |
 
-> 负例复测：arguana / vihealthqa / climate-fever 经"词典优先"路径**全部翻正**；quora 经网格验证为"默认已近最优"（grid 最优仅 +0.37% NDCG），已从实验集移除。
+**代表性提升（BEIR 数据集，NDCG@10）**
+
+| 数据集 | 领域 | NDCG@10 提升 |
+|---|---|---:|
+| trec-covid-v2 | COVID-19 学术文献（13 万文档） | **+93.7%** |
+| webis-touche2020 | 论点检索（38 万文档） | **+26.5%** |
+| trec-covid / trec-covid-beir | COVID-19 学术文献（17 万文档） | +22.2% |
+| fever | 事实验证（540 万文档） | +19.2% |
+| nq | 开放域问答（268 万文档） | +17.5% |
+| scifact | 科学论断证据 | +8.2% |
+| dbpedia-entity | 实体链接检索（460 万文档） | +7.7% |
+| msmarco | 网页检索（884 万文档） | +2.4% |
 
 ## 快速开始
 
 ```bash
 pip install -r requirements.txt
 
-# 输入数据集 → 直接得到超参数（词典优先 + 启发式回退）
-python src/main.py --dataset dataset/XXX --predict
+# 输入数据集 + 查询 → 直接返回检索结果（自动选好 BM25 参数，和正常 BM25 一样用）
+python src/main.py --dataset dataset/XXX --search "查询词"
 
-# 输入数据集 → 得到 default vs predicted 的检索效果
+# 交互式检索：输入查询 → 回车出结果，exit 退出
+python src/main.py --dataset dataset/XXX --interactive
+
+# 其他：只看参数 / 评估 default vs predicted
+python src/main.py --dataset dataset/XXX --predict
 python src/main.py --dataset dataset/XXX --eval
 ```
 
-数据格式：标准 `docs.jsonl / queries.jsonl / qrels.jsonl` 或 BEIR `corpus.jsonl + qrels/*.tsv`（自动识别 `_id`/`qid` 与 `query-id/corpus-id` 表头）。大字典在 [`dictionary/param_dictionary.json`](dictionary/param_dictionary.json)，克隆即用，无需先跑实验。
+## 数据格式
+
+数据集放在 `dataset/XXX/` 目录下，支持两种格式（自动识别）：
+
+**标准格式**
+
+```
+docs.jsonl      # 每行 {"id": "...", "text": "..."}
+queries.jsonl   # 每行 {"qid": "...", "query": "..."}
+qrels.jsonl     # 每行 {"qid": "...", "doc_id": "...", "relevance": 1}
+```
+
+**BEIR 格式**
+
+```
+corpus.jsonl    # 每行 {"_id": "...", "title": "...", "text": "..."}
+queries.jsonl   # 每行 {"_id": "...", "text": "..."}
+qrels/*.tsv     # 表头 query-id \t corpus-id \t score（也兼容 qid / corpus_id 命名）
+```
+
+纯检索时只需要 `docs.jsonl`（或 `corpus.jsonl`）即可，查询可以交互式输入，qrels 可缺省。大字典在 [`dictionary/param_dictionary.json`](dictionary/param_dictionary.json)，克隆即用，无需先跑实验。
 
 ## 进阶用法（复现与开发）
 

@@ -1,6 +1,8 @@
 """AutoBM25 命令行入口。
 
 用法：
+  python main.py --dataset dataset/XXX --search "查询词"      # 直接检索，返回 top-k
+  python main.py --dataset dataset/XXX --interactive           # 交互式检索（输入查询回车出结果）
   python main.py --dataset dataset/XXX --predict           # 只预测参数
   python main.py --dataset dataset/XXX --eval              # 预测参数并评估（default vs predicted）
   python main.py --dataset dataset/XXX --eval --grid       # 额外做 grid search 画上界
@@ -12,7 +14,8 @@ import argparse
 import os
 
 from data_augmentation import augment_dataset
-from data_loader import load_dataset
+from bm25_engine import BM25Engine
+from data_loader import load_dataset, load_dataset_subsampled
 from evaluator import calibrate, evaluate, grid_search
 from feature_extractor import extract_features, save_json as save_features_json
 from rule_predictor import load_config, predict, predict_with_dictionary, save_json as save_params_json
@@ -131,9 +134,59 @@ def cmd_build_dict(args):
     )
 
 
+def _print_search_results(engine, query, top_k):
+    results = engine.search(query, top_k=top_k)
+    if not results:
+        print("  （无匹配结果）")
+        return
+    for i, (doc_id, score) in enumerate(results, 1):
+        print(f"  {i:3d}. [{score:.4f}] {doc_id}")
+
+
+def cmd_search(args):
+    """输入数据集 → 自适应参数 → 建索引 → 直接检索（单条查询或交互式）。"""
+    name = os.path.basename(os.path.normpath(args.dataset))
+    if args.max_docs and os.path.exists(os.path.join(args.dataset, "corpus.jsonl")):
+        docs, queries, qrels = load_dataset_subsampled(args.dataset, args.max_docs)
+    else:
+        docs, queries, qrels = load_dataset(args.dataset)
+    if not docs:
+        raise SystemExit(f"[search] {args.dataset} 中没有文档（需要 docs.jsonl 或 corpus.jsonl）")
+    features = extract_features(docs, queries)
+    params = predict(features) if args.no_dict else predict_with_dictionary(features)
+    engine = BM25Engine().build_index(docs)
+    engine.set_params(
+        k1=params.get("k1"),
+        b=params.get("b"),
+        k3=params.get("k3"),
+        delta=params.get("delta"),
+        idf_type=params.get("idf_type"),
+    )
+    print(f"[search] 数据集 {name}: {len(docs)} 篇文档，自适应参数 {params}")
+    if args.search and args.search != "__interactive__":
+        _print_search_results(engine, args.search, args.topk)
+        return
+    print("[search] 交互模式：输入查询后回车检索，输入 exit / quit 退出")
+    while True:
+        try:
+            q = input("query> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+        if not q or q.lower() in ("exit", "quit", "q"):
+            break
+        _print_search_results(engine, q, args.topk)
+
+
 def main():
     parser = argparse.ArgumentParser(description="AutoBM25: 基于数据集统计特征的 BM25 自适应超参数选择")
     parser.add_argument("--dataset", type=str, help="数据集目录，如 dataset/fiqa")
+    parser.add_argument("--search", nargs="?", const="__interactive__", default=None,
+                        metavar="QUERY", help="检索模式：直接对查询词返回 top-k；不带查询词则进入交互式检索")
+    parser.add_argument("--interactive", action="store_true", help="交互式检索（等价于 --search 不带查询词）")
+    parser.add_argument("--topk", type=int, default=10, help="检索返回条数（默认 10）")
+    parser.add_argument("--max-docs", type=int, default=None,
+                        help="超大数据集子采样（与实验口径一致，相关标注全保留）")
     parser.add_argument("--predict", action="store_true", help="只预测参数，不评估")
     parser.add_argument("--eval", action="store_true", help="预测参数并评估（default vs predicted）")
     parser.add_argument("--grid", action="store_true", help="配合 --eval 额外运行 grid search（上界）")
@@ -159,7 +212,11 @@ def main():
     args = parser.parse_args()
     os.makedirs(args.out_dir, exist_ok=True)
 
-    if args.build_dict:
+    if args.search or args.interactive:
+        if not args.dataset:
+            parser.error("--search / --interactive 需要 --dataset")
+        cmd_search(args)
+    elif args.build_dict:
         cmd_build_dict(args)
     elif args.calibrate:
         cmd_calibrate(args)
