@@ -85,7 +85,13 @@ def cmd_batch(args):
             hits = engine.search(q["query"], top_k=top_k)
             f.write(
                 json.dumps(
-                    {"qid": q["qid"], "results": [{"doc_id": d, "score": s} for d, s in hits]},
+                    {
+                        "qid": q["qid"],
+                        "results": [
+                            {"rank": i, "doc_id": d, "score": s}
+                            for i, (d, s) in enumerate(hits, 1)
+                        ],
+                    },
                     ensure_ascii=False,
                 )
                 + "\n"
@@ -148,8 +154,10 @@ def cmd_interactive(args):
         if not hits:
             print("  （无匹配结果）")
             continue
+        print(f"[AutoBM25] 查询「{q}」→ Top {len(hits)} 结果（分数越高越相关）：")
+        print(f"  {'排名':>4}  {'得分':>12}  文档ID")
         for i, (doc_id, score) in enumerate(hits, 1):
-            print(f"  {i:3d}. [{score:.4f}] {doc_id}")
+            print(f"  {i:>4}  {score:>12.4f}  {doc_id}")
 
 
 def main():
