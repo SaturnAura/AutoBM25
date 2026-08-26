@@ -24,14 +24,14 @@ AutoBM25 换了一条路：**最优参数是语料统计结构的函数**，而�
 
 ## 数值提升（16 个 BEIR 数据集）
 
-| 指标 | 结果 |
-|---|---:|
-| 优于默认参数的数据集 | **13/16**（纯启发式）；**16/16**（词典优先，不劣于默认） |
-| 平均提升 | MRR@10 **+9.4%** · NDCG@10 **+11.6%** · Recall@100 **+5.6%** |
-| 词典命中率（LOO） | **88.9%**（27/30） |
-| dict+回退 达到 grid 上界 | **90.1%** |
-| 单数据集最大提升 | trec-covid-v2 NDCG@10 **+93.7%**；fever +19.2%；nq +17.5% |
-| 词典规模 | **30 条目**（12 真实语料 + 18 拼接体） |
+| 指标                     |                                                                            结果 |
+| ------------------------ | ------------------------------------------------------------------------------: |
+| 优于默认参数的数据集     |            **13/16**（纯启发式）；**16/16**（词典优先，不劣于默认） |
+| 平均提升                 | MRR@10**+9.4%** · NDCG@10 **+11.6%** · Recall@100 **+5.6%** |
+| 词典命中率（LOO）        |                                                        **88.9%**（27/30） |
+| dict+回退 达到 grid 上界 |                                                                 **90.1%** |
+| 单数据集最大提升         |                  trec-covid-v2 NDCG@10**+93.7%**；fever +19.2%；nq +17.5% |
+| 词典规模                 |                                    **30 条目**（12 真实语料 + 18 拼接体） |
 
 > 负例复测：arguana / vihealthqa / climate-fever 经"词典优先"路径**全部翻正**；quora 经网格验证为"默认已近最优"（grid 最优仅 +0.37% NDCG），已从实验集移除。
 
@@ -40,19 +40,36 @@ AutoBM25 换了一条路：**最优参数是语料统计结构的函数**，而�
 ```bash
 pip install -r requirements.txt
 
-# 预测参数（词典优先 + 启发式回退），克隆仓库即可用
+# 输入数据集 → 直接得到超参数（词典优先 + 启发式回退）
 python main.py --dataset dataset/XXX --predict
 
-# 评估：default vs predicted
+# 输入数据集 → 得到 default vs predicted 的检索效果
 python main.py --dataset dataset/XXX --eval
-
-# 重建词典 / 批量实验 / 结果汇总
-python main.py --build-dict
-python run_experiments.py --all --eval-queries -1 --max-docs 200000
-python summarize_results.py
 ```
 
 数据格式：标准 `docs.jsonl / queries.jsonl / qrels.jsonl` 或 BEIR `corpus.jsonl + qrels/*.tsv`（自动识别 `_id`/`qid` 与 `query-id/corpus-id` 表头）。大字典在 [`dictionary/param_dictionary.json`](dictionary/param_dictionary.json)，克隆即用，无需先跑实验。
+
+## 进阶用法（复现与开发）
+
+```bash
+# 重建参数大字典（基于 results/ 中的实验基准数据，30 条目）
+python main.py --build-dict
+
+# 批量实验：全数据集 特征 → 预测 → 评估（超大数据集自动分层子采样）
+python run_experiments.py --all --eval-queries -1 --max-docs 200000
+
+# 结果汇总为 Markdown 表格
+python summarize_results.py
+
+# 专项工具：词典命中率分析 / 留一法评估 / 拼接增强 / k3 消融 / 混合语料测试
+python analyze_dictionary.py
+python evaluate_dictionary.py
+python mix_corpora.py
+python experiment_k3.py
+python mega_corpus.py
+```
+
+每个命令的完整参数与输出说明见 **[技术文档.md](技术文档.md) §8 快速开始（复现）**。
 
 ## 局限
 
