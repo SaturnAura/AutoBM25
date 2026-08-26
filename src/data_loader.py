@@ -107,6 +107,32 @@ def save_dataset(path, docs, queries, qrels):
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
 
+def find_dataset_dirs(base="dataset", include_augmented=False):
+    """扫描 base 下的数据集目录（含 docs.jsonl 或 corpus.jsonl 即视为数据集）。"""
+    dirs = []
+    if not os.path.isdir(base):
+        return dirs
+    for entry in sorted(os.listdir(base)):
+        p = os.path.join(base, entry)
+        if not os.path.isdir(p):
+            continue
+        if os.path.exists(os.path.join(p, "docs.jsonl")) or os.path.exists(
+            os.path.join(p, "corpus.jsonl")
+        ):
+            dirs.append(p)
+    if include_augmented:
+        aug_root = os.path.join(base, "augmented")
+        if os.path.isdir(aug_root):
+            for entry in sorted(os.listdir(aug_root)):
+                sub = os.path.join(aug_root, entry)
+                if os.path.isdir(sub):
+                    for e2 in sorted(os.listdir(sub)):
+                        p = os.path.join(sub, e2)
+                        if os.path.exists(os.path.join(p, "docs.jsonl")):
+                            dirs.append(p)
+    return dirs
+
+
 def load_dataset_subsampled(path, max_docs, seed=42):
     """流式加载并分层子采样文档（相关性标注优先保留）。
 

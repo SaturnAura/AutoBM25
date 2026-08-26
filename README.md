@@ -43,16 +43,15 @@ AutoBM25 换了一条路：**最优参数是语料统计结构的函数**，而�
 ```bash
 pip install -r requirements.txt
 
-# 输入数据集 + 查询 → 直接返回检索结果（自动选好 BM25 参数，和正常 BM25 一样用）
-python src/main.py --dataset dataset/XXX --search "查询词"
+# 批量检索：跑完 dataset/XXX/queries.jsonl 的全部查询，
+# 结果写回 dataset/XXX/results.jsonl；有 qrels 时自动附带评测（evaluation.json）
+python src/main.py --dataset dataset/XXX
 
-# 交互式检索：输入查询 → 回车出结果，exit 退出
+# 交互式检索：显示输入栏，输入查询 → 回车出结果，exit 退出
 python src/main.py --dataset dataset/XXX --interactive
-
-# 其他：predict = 只看这个数据集该用什么参数；eval = 用标注衡量检索效果（default vs predicted）
-python src/main.py --dataset dataset/XXX --predict
-python src/main.py --dataset dataset/XXX --eval
 ```
+
+启动时会打印一条日志，显示本数据集自适应选择的 BM25 超参数（如 `k1=0.5 b=0.495 k3=0.7 δ=0.97 idf=smoothed`）。
 
 ## 数据格式
 
