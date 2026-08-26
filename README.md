@@ -24,14 +24,14 @@ AutoBM25 换了一条路：**最优参数是语料统计结构的函数**，而�
 
 ## 数值提升（16 个 BEIR 数据集）
 
-| 指标                     |                                                                            结果 |
-| ------------------------ | ------------------------------------------------------------------------------: |
-| 优于默认参数的数据集     |            **13/16**（纯启发式）；**16/16**（词典优先，不劣于默认） |
-| 平均提升                 | MRR@10**+9.4%** · NDCG@10 **+11.6%** · Recall@100 **+5.6%** |
-| 词典命中率（LOO）        |                                                        **88.9%**（27/30） |
-| dict+回退 达到 grid 上界 |                                                                 **90.1%** |
-| 单数据集最大提升         |                  trec-covid-v2 NDCG@10**+93.7%**；fever +19.2%；nq +17.5% |
-| 词典规模                 |                                    **30 条目**（12 真实语料 + 18 拼接体） |
+| 指标                     |                                                                     结果 |
+| ------------------------ | -----------------------------------------------------------------------: |
+| 优于默认参数的数据集     |     **13/16**（纯启发式）；**16/16**（词典优先，不劣于默认） |
+| 平均提升                 | MRR@10**+9.4%** · NDCG@10**+11.6%** · Recall@100 **+5.6%** |
+| 词典命中率（LOO）        |                                                 **88.9%**（27/30） |
+| dict+回退 达到 grid 上界 |                                                          **90.1%** |
+| 单数据集最大提升         |                 trec-covid-v2 NDCG@10**+93.7%**；fever +19.2%；nq +17.5% |
+| 词典规模                 |                             **30 条目**（12 真实语料 + 18 拼接体） |
 
 > 负例复测：arguana / vihealthqa / climate-fever 经"词典优先"路径**全部翻正**；quora 经网格验证为"默认已近最优"（grid 最优仅 +0.37% NDCG），已从实验集移除。
 
@@ -41,10 +41,10 @@ AutoBM25 换了一条路：**最优参数是语料统计结构的函数**，而�
 pip install -r requirements.txt
 
 # 输入数据集 → 直接得到超参数（词典优先 + 启发式回退）
-python main.py --dataset dataset/XXX --predict
+python src/main.py --dataset dataset/XXX --predict
 
 # 输入数据集 → 得到 default vs predicted 的检索效果
-python main.py --dataset dataset/XXX --eval
+python src/main.py --dataset dataset/XXX --eval
 ```
 
 数据格式：标准 `docs.jsonl / queries.jsonl / qrels.jsonl` 或 BEIR `corpus.jsonl + qrels/*.tsv`（自动识别 `_id`/`qid` 与 `query-id/corpus-id` 表头）。大字典在 [`dictionary/param_dictionary.json`](dictionary/param_dictionary.json)，克隆即用，无需先跑实验。
@@ -52,30 +52,39 @@ python main.py --dataset dataset/XXX --eval
 ## 进阶用法（复现与开发）
 
 ```bash
-# 重建参数大字典（基于 results/ 中的实验基准数据，30 条目）
-python main.py --build-dict
+# 重建参数大字典（基于本地 results/ 的基准数据；默认不随仓库提交，
+# 克隆后开箱即用随仓库提交的 30 条目词典，无需先跑实验）
+python src/main.py --build-dict
 
 # 批量实验：全数据集 特征 → 预测 → 评估（超大数据集自动分层子采样）
-python run_experiments.py --all --eval-queries -1 --max-docs 200000
+python src/run_experiments.py --all --eval-queries -1 --max-docs 200000
 
 # 结果汇总为 Markdown 表格
-python summarize_results.py
+python src/summarize_results.py
 
 # 专项工具：词典命中率分析 / 留一法评估 / 拼接增强 / k3 消融 / 混合语料测试
-python analyze_dictionary.py
-python evaluate_dictionary.py
-python mix_corpora.py
-python experiment_k3.py
-python mega_corpus.py
+python src/analyze_dictionary.py
+python src/evaluate_dictionary.py
+python src/mix_corpora.py
+python src/experiment_k3.py
+python src/mega_corpus.py
 ```
 
-每个命令的完整参数与输出说明见 **[技术文档.md](技术文档.md) §8 快速开始（复现）**。
+所有实现模块位于 `src/`，命令统一从仓库根目录执行。
 
 ## 局限
 
 - **分布外（OOD）**：当新语料特征超出词典训练覆盖（超长查询、跨域混合语料等）时，查表自动回退启发式——极端/混合场景下规则仍可能弱于默认参数。
 - **非英文语料**：特征含英文停用词密度等语言相关项，非英文语料（如越南语 vihealthqa）需要语言无关特征或独立分册。
 
-## 技术细节
+## 项目结构
 
-完整的技术方案（特征体系、启发式规则、大字典与 OOD 机制、拼接增强、系数标定）、实验协议、k3 消融、命中率与留一法分析、混合语料泛化测试、复现命令与参考文献，见 **[技术文档.md](技术文档.md)**。
+```
+autobm25/
+├── src/                  # 全部实现模块（CLI、引擎、特征、词典、实验脚本）
+├── dictionary/           # 参数大字典 param_dictionary.json（30 条目，随仓库提交）
+├── logo/                 # 项目 logo
+├── config.yaml           # 启发式系数、默认参数、grid/增强/词典配置
+├── requirements.txt
+└── README.md
+```

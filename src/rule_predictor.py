@@ -13,7 +13,9 @@ import os
 
 import yaml
 
-CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.yaml")
+# 模块在 src/ 下，项目根 = 上两级目录（config.yaml / dictionary/ 都在根）
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CONFIG_FILE = os.path.join(_PROJECT_ROOT, "config.yaml")
 
 
 def load_config():
@@ -84,7 +86,7 @@ def predict(features, config=None):
 def predict_with_dictionary(features, config=None, dictionary=None):
     """先查参数词典（命中返回词典参数），未命中回退到启发式规则。"""
     if dictionary is None:
-        dict_path = os.path.join(os.path.dirname(__file__), "dictionary", "param_dictionary.json")
+        dict_path = os.path.join(_PROJECT_ROOT, "dictionary", "param_dictionary.json")
         if os.path.exists(dict_path):
             from param_dictionary import ParamDictionary
             dictionary = ParamDictionary.load(dict_path)
