@@ -105,6 +105,11 @@ def cmd_eval(args):
 def cmd_augment(args):
     _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     _research = os.path.join(_root, "research")
+    if not os.path.isdir(_research):
+        raise SystemExit(
+            "[augment] 数据增强脚本位于 research/（复现用，不随仓库提交），"
+            "当前仓库没有该目录；检索/预测/评估不受影响。"
+        )
     if _research not in sys.path:
         sys.path.insert(0, _research)
     from data_augmentation import augment_dataset
@@ -131,8 +136,14 @@ def cmd_calibrate(args):
 
 def cmd_build_dict(args):
     from param_dictionary import DEFAULT_DICT_PATH, build_dictionary
+    benchmark_path = os.path.join(args.out_dir, "benchmark_results.json")
+    if not os.path.exists(benchmark_path):
+        raise SystemExit(
+            f"[build-dict] 需要本地基准数据 {benchmark_path}（不随仓库提交）；"
+            "克隆后随仓库提交的 dictionary/param_dictionary.json 已可直接使用。"
+        )
     build_dictionary(
-        benchmark_path=os.path.join(args.out_dir, "benchmark_results.json"),
+        benchmark_path=benchmark_path,
         out_path=DEFAULT_DICT_PATH,
         k_neighbors=args.dict_k,
         match_threshold=args.dict_threshold,
