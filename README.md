@@ -91,3 +91,7 @@ autobm25/
 ├── requirements.txt
 └── README.md
 ```
+
+## License
+
+本项目采用 [MIT License](LICENSE)：代码可**自由复制、修改、商用**，唯一要求是在副本中**保留版权声明与本许可文本**（即"使用请注明出处"）。引用本项目时附上仓库链接即可满足要求。
