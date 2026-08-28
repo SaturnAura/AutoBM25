@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autobm25"
+version = "0.1.0"
+description = "Zero-label BM25 hyperparameter adaptation: O(1) statistical-feature dictionary lookup with heuristic fallback"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+keywords = ["bm25", "information-retrieval", "hyperparameter", "zero-shot", "ir"]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pyyaml>=6.0",
+    "tqdm>=4.60",
+]
+
+[project.scripts]
+autobm25 = "autobm25.cli:main"
+
+[tool.setuptools]
+packages = ["autobm25"]
+
+[tool.setuptools.package-data]
+autobm25 = ["data/*.json", "data/*.txt", "data/*.yaml"]

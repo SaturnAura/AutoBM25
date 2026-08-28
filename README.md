@@ -2,7 +2,7 @@
 
 ![AutoBM25 logo](logo/logo.png)
 
-> Feed the corpus's **statistical features** into an **O(1) parameter dictionary** and get the optimal BM25 hyperparameters (k1 / b / k3 / δ / IDF) directly; fall back to interpretable heuristics when nothing matches. Verified on 16 BEIR datasets: **16/16 never worse than defaults, average NDCG@10 +11.6%, dictionary hit rate 88.9%**.
+> Feed the corpus's **statistical features** into an **O(1) parameter dictionary** and get the optimal BM25 hyperparameters (k1 / b / k3 / δ / IDF) directly; fall back to interpretable heuristics when nothing matches. Verified on 16 BEIR datasets: **16/16 never worse than defaults, average NDCG@10 +11.6%, dictionary hit rate 92.0%**.
 
 > 😄 Maybe we should call it **BM26**? — if the hyperparameters can adapt, so can the version number (just kidding, BM25 is BM25).
 
@@ -17,9 +17,9 @@ AutoBM25 takes a different path: **optimal parameters are a function of the corp
 ## Highlights
 
 - 🗂️ **18 statistical features** (P0/P1/P2): document length distribution, term-frequency redundancy, vocabulary growth, query-side statistics — each with an explicit "mechanism hypothesis" (why it predicts a given parameter)
-- ⚡ **O(1) parameter dictionary**: nearest-neighbor lookup from feature vectors to optimal parameters, with **out-of-distribution (OOD) guard** and **heuristic fallback**; 30 entries shipped with the repo, growing with every new grid-searched dataset
+- ⚡ **O(1) parameter dictionary**: nearest-neighbor lookup from feature vectors to optimal parameters, with **out-of-distribution (OOD) guard** and **heuristic fallback**; 44 entries shipped with the repo, growing with every new grid-searched dataset
 - 🔧 **k3 query-term-frequency saturation**: ablation-verified, up to **+19.9%** on long-query scenarios
-- 🧩 **Corpus mixing**: combine existing corpora into cross-domain blends to fill feature-space gaps; dictionary hit rate **70.6% → 88.9%**
+- 🧩 **Corpus mixing**: combine existing corpora into cross-domain blends to fill feature-space gaps; dictionary hit rate **70.6% → 92.0%**
 - 🚀 **Scales to 8.84M documents** (msmarco); self-built numpy-vectorized BM25/BM25+ engine with streaming stratified subsampling that keeps all relevant annotations
 
 ## Results (16 BEIR datasets)
@@ -37,20 +37,56 @@ AutoBM25 takes a different path: **optimal parameters are a function of the corp
 | msmarco | Web search (8.8M docs) | +2.4% |
 | **Average (16 datasets)** | — | **MRR@10 +9.4% · NDCG@10 +11.6% · Recall@100 +5.6%** |
 
+**Baseline: original BM25 (defaults, k1=1.2, b=0.75, k3=0, δ=0, rsj IDF)**
+
+The gains above are computed against this baseline on the same queries:
+
+| Dataset | MRR@10 | NDCG@10 | Recall@100 |
+|---|---:|---:|---:|
+| arguana | 0.2036 | 0.3158 | 0.9090 |
+| climate-fever | 0.2480 | 0.1778 | 0.4551 |
+| dbpedia-entity | 0.2724 | 0.2330 | 0.4638 |
+| fever | 0.5983 | 0.6105 | 0.9007 |
+| fiqa | 0.1727 | 0.1387 | 0.3429 |
+| hotpotqa | 0.8131 | 0.6478 | 0.7700 |
+| msmarco | 0.4024 | 0.4400 | 0.7490 |
+| nfcorpus | 0.4600 | 0.2633 | 0.1984 |
+| nq | 0.1594 | 0.1774 | 0.5937 |
+| scidocs | 0.2228 | 0.1215 | 0.2936 |
+| scifact | 0.5033 | 0.5388 | 0.8116 |
+| trec-covid | 0.5936 | 0.3322 | 0.0573 |
+| trec-covid-beir | 0.6107 | 0.3394 | 0.0575 |
+| trec-covid-v2 | 0.4079 | 0.2127 | 0.0494 |
+| vihealthqa | 0.3824 | 0.3676 | 0.6248 |
+| webis-touche2020 | 0.4931 | 0.2226 | 0.4336 |
+| **Average** | **0.4090** | **0.3212** | **0.4819** |
+
 ## Quick Start
 
 ```bash
-pip install -r requirements.txt
+pip install .
 
 # Batch retrieval: run all queries in dataset/XXX/queries.jsonl,
 # write results back to dataset/XXX/results.jsonl; auto-evaluates if qrels exist
-python src/main.py --dataset dataset/XXX
+autobm25 --dataset dataset/XXX
 
 # Interactive retrieval: type a query, press Enter, exit with "exit"
-python src/main.py --dataset dataset/XXX --interactive
+autobm25 --dataset dataset/XXX --interactive
+```
+
+Or use it as a library:
+
+```python
+from autobm25 import AutoBM25
+
+retriever = AutoBM25.from_dataset("dataset/fiqa")
+print(retriever.params)             # hyperparameters chosen for this corpus
+retriever.search("how does tax refund work", top_k=10)
 ```
 
 On startup a log line shows the hyperparameters chosen for this dataset (e.g., `k1=0.5 b=0.495 k3=0.7 δ=0.97 idf=smoothed`).
+
+The parameter dictionary is bundled inside the package (`autobm25/data/param_dictionary.json`), so retrieval works out of the box after `pip install .` — no need to run any experiments first.
 
 ## Data Formats
 
@@ -83,10 +119,10 @@ For retrieval only, `docs.jsonl` (or `corpus.jsonl`) is enough — queries can b
 
 ```
 autobm25/
-├── src/                  # User-facing retrieval modules (CLI, engine, features, dictionary, evaluation)
-├── dictionary/           # Parameter dictionary param_dictionary.json (30 entries, shipped with the repo)
+├── autobm25/              # pip package: retrieval API (engine, features, dictionary, CLI) + data/ (dictionary)
 ├── logo/                 # Project logo
-├── config.yaml           # Heuristic coefficients, defaults, grid/augmentation/dictionary settings
+├── config.yaml           # Heuristic coefficients (used by local research/ tooling)
+├── pyproject.toml        # pip packaging
 ├── requirements.txt
 └── README.md
 ```

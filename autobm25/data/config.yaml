@@ -1,0 +1,56 @@
+# AutoBM25 配置文件：启发式公式系数、默认参数、grid search 空间、增强参数
+
+coefficients:
+  # k1 = clip(k1_base - alpha_ttr * avg_ttr + alpha_maxtf * min(avg_max_tf/20, 1), 0.5, 3.0)
+  k1_base: 1.5
+  alpha_ttr: 1.5
+  alpha_maxtf: 0.3
+  # b = clip(b_base + beta_corr * length_tf_corr - beta_cv * cv_len, 0, 1)
+  b_base: 0.5
+  beta_corr: 0.4
+  beta_cv: 0.3
+  # delta = clip(gamma_delta * cv_len, 0, 2.0)
+  gamma_delta: 1.0
+  # k3 = clip(k3_base*(avg_query_max_tf-1) + k3_rep*query_repeat_ratio, 0, 8)
+  k3_base: 0.5
+  k3_rep: 2.0
+  # IDF 类型判断阈值：heaps_beta > 0.7 或 hapax_ratio > 0.6 → smoothed
+  heaps_beta_threshold: 0.7
+  hapax_ratio_threshold: 0.6
+  # 参数上下限
+  k1_min: 0.5
+  k1_max: 3.0
+  b_min: 0.0
+  b_max: 1.0
+  delta_min: 0.0
+  delta_max: 2.0
+  k3_min: 0.0
+  k3_max: 8.0
+
+default_params:
+  k1: 1.2
+  b: 0.75
+  k3: 0.0
+  delta: 0.0
+  idf_type: rsj
+
+grid_search:
+  k1: [0.5, 0.8, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0]
+  b: [0.0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1.0]
+  k3: [0.0, 0.5, 1.2, 2.0, 4.0, 8.0]
+  delta: [0.0, 0.3, 0.5, 0.7, 1.0, 1.5]
+  idf_type: [rsj, smoothed]
+  metric: ndcg@10
+  top_k: 100
+
+augmentation:
+  random_subsample:
+    ratios: [0.1, 0.3, 0.5, 0.7]
+    seeds: [0, 1, 2]
+  length_bucket_split:
+    n_buckets_list: [2, 3, 4]
+  truncate_docs:
+    max_lens: [50, 100, 200, 500]
+  sliding_window:
+    window_sizes: [50, 100, 200]
+    stride_fraction: 0.5

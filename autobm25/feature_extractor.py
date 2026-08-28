@@ -19,9 +19,9 @@ import os
 import numpy as np
 from scipy import stats
 
-from bm25_engine import tokenize
+from .bm25_engine import tokenize
 
-STOPWORDS_FILE = os.path.join(os.path.dirname(__file__), "stopwords.txt")
+STOPWORDS_FILE = os.path.join(os.path.dirname(__file__), "data", "stopwords.txt")
 
 
 def load_stopwords():

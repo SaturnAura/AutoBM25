@@ -1,6 +1,10 @@
-dataset_1/
+dataset_en/
+dataset_cn/
 __pycache__/
 *.pyc
+*.egg-info/
+build/
+dist/
 results/*
 document/*
 research/*

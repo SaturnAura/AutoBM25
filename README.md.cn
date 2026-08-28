@@ -4,7 +4,7 @@
 
 ![AutoBM25 logo](logo/logo.png)
 
-> 输入任意语料的**统计特征** → **O(1) 大字典查表**直接得到最优 BM25 超参数（k1 / b / k3 / δ / IDF）；查不到就启发式兜底。16 个 BEIR 数据集验证：**16/16 不劣于默认参数、平均 NDCG@10 +11.6%、词典命中率 88.9%**。
+> 输入任意语料的**统计特征** → **O(1) 大字典查表**直接得到最优 BM25 超参数（k1 / b / k3 / δ / IDF）；查不到就启发式兜底。16 个 BEIR 数据集验证：**16/16 不劣于默认参数、平均 NDCG@10 +11.6%、词典命中率 92.0%**。
 
 > 😄 或许我们应该叫 **BM26**？——参数都能自适应了，版本号也自适一下（开个玩笑，BM25 还是 BM25）。
 
@@ -21,7 +21,7 @@ AutoBM25 换了一条路：**最优参数是语料统计结构的函数**，而�
 - 🗂️ **18 维统计特征**（P0/P1/P2）：文档长度分布、词频冗余度、词汇增长曲线、查询侧特征——每个特征都有明确的"机制假设"（为什么它能预测某个参数）
 - ⚡ **O(1) 参数大字典**：`特征向量 → 最优参数` 最近邻查表，含**分布外（OOD）防护**与**启发式回退**；30 个条目随仓库提交，每新增一个做过 grid search 的数据集就多一条经验
 - 🔧 **k3 查询词频饱和项**：消融试验确认有效，长查询场景相对提升最高 **+19.9%**
-- 🧩 **多语料拼接（Mixing）**：把已有语料组合拼接生成"跨域样本"，主动在特征空间补点，词典命中率 **70.6% → 88.9%**
+- 🧩 **多语料拼接（Mixing）**：把已有语料组合拼接生成"跨域样本"，主动在特征空间补点，词典命中率 **70.6% → 92.0%**
 - 🚀 **规模验证到 884 万文档**（msmarco），全自研 numpy 向量化 BM25/BM25+ 引擎，超大数据集流式子采样、相关标注全保留
 
 ## 数值提升（16 个 BEIR 数据集）
@@ -39,17 +39,51 @@ AutoBM25 换了一条路：**最优参数是语料统计结构的函数**，而�
 | msmarco                       | 网页检索（884 万文档）         |                                                        +2.4% |
 | **平均（16 个数据集）** | —                             | **MRR@10 +9.4% · NDCG@10 +11.6% · Recall@100 +5.6%** |
 
+**原版 BM25 基线（默认参数：k1=1.2, b=0.75, k3=0, δ=0, rsj IDF）**
+
+上面所有"提升"都是相对这套基线、在同一批查询上算出来的：
+
+| 数据集 | MRR@10 | NDCG@10 | Recall@100 |
+|---|---:|---:|---:|
+| arguana | 0.2036 | 0.3158 | 0.9090 |
+| climate-fever | 0.2480 | 0.1778 | 0.4551 |
+| dbpedia-entity | 0.2724 | 0.2330 | 0.4638 |
+| fever | 0.5983 | 0.6105 | 0.9007 |
+| fiqa | 0.1727 | 0.1387 | 0.3429 |
+| hotpotqa | 0.8131 | 0.6478 | 0.7700 |
+| msmarco | 0.4024 | 0.4400 | 0.7490 |
+| nfcorpus | 0.4600 | 0.2633 | 0.1984 |
+| nq | 0.1594 | 0.1774 | 0.5937 |
+| scidocs | 0.2228 | 0.1215 | 0.2936 |
+| scifact | 0.5033 | 0.5388 | 0.8116 |
+| trec-covid | 0.5936 | 0.3322 | 0.0573 |
+| trec-covid-beir | 0.6107 | 0.3394 | 0.0575 |
+| trec-covid-v2 | 0.4079 | 0.2127 | 0.0494 |
+| vihealthqa | 0.3824 | 0.3676 | 0.6248 |
+| webis-touche2020 | 0.4931 | 0.2226 | 0.4336 |
+| **平均** | **0.4090** | **0.3212** | **0.4819** |
+
 ## 快速开始
 
 ```bash
-pip install -r requirements.txt
+pip install .
 
 # 批量检索：跑完 dataset/XXX/queries.jsonl 的全部查询，
 # 结果写回 dataset/XXX/results.jsonl；有 qrels 时自动附带评测（evaluation.json）
-python src/main.py --dataset dataset/XXX
+autobm25 --dataset dataset/XXX
 
 # 交互式检索：显示输入栏，输入查询 → 回车出结果，exit 退出
-python src/main.py --dataset dataset/XXX --interactive
+autobm25 --dataset dataset/XXX --interactive
+```
+
+也可以当库用：
+
+```python
+from autobm25 import AutoBM25
+
+retriever = AutoBM25.from_dataset("dataset/fiqa")
+print(retriever.params)              # 该语料自动选出的超参数
+retriever.search("how does tax refund work", top_k=10)
 ```
 
 启动时会打印一条日志，显示本数据集自适应选择的 BM25 超参数（如 `k1=0.5 b=0.495 k3=0.7 δ=0.97 idf=smoothed`）。
@@ -74,7 +108,7 @@ queries.jsonl   # 每行 {"_id": "...", "text": "..."}
 qrels/*.tsv     # 表头 query-id \t corpus-id \t score（也兼容 qid / corpus_id 命名）
 ```
 
-纯检索时只需要 `docs.jsonl`（或 `corpus.jsonl`）即可，查询可以交互式输入，qrels 可缺省。大字典在 [`dictionary/param_dictionary.json`](dictionary/param_dictionary.json)，克隆即用，无需先跑实验。
+纯检索时只需要 `docs.jsonl`（或 `corpus.jsonl`）即可，查询可以交互式输入，qrels 可缺省。大字典随包内置（`autobm25/data/param_dictionary.json`），`pip install .` 后开箱即用，无需先跑实验。
 
 ## 局限
 
@@ -85,10 +119,10 @@ qrels/*.tsv     # 表头 query-id \t corpus-id \t score（也兼容 qid / corpus
 
 ```
 autobm25/
-├── src/                  # 即开即用的检索模块（CLI、引擎、特征、词典、评估）
-├── dictionary/           # 参数大字典 param_dictionary.json（30 条目，随仓库提交）
+├── autobm25/              # pip 包：检索接口（引擎、特征、词典、CLI）+ data/（大字典）
 ├── logo/                 # 项目 logo
-├── config.yaml           # 启发式系数、默认参数、grid/增强/词典配置
+├── config.yaml           # 启发式系数（本地 research/ 工具用）
+├── pyproject.toml        # pip 打包配置
 ├── requirements.txt
 └── README.md
 ```
