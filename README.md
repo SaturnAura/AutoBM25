@@ -24,43 +24,29 @@ AutoBM25 takes a different path: **optimal parameters are a function of the corp
 
 ## Results (16 BEIR datasets)
 
-**Representative improvements (BEIR datasets, NDCG@10)**
+**Original BM25 (defaults) vs AutoBM25 (adaptive) — MRR@10 / NDCG@10 / Recall@100**
 
-| Dataset | Domain | NDCG@10 gain |
-|---|---|---:|
-| webis-touche2020 | Argument retrieval (383K docs) | **+26.5%** |
-| trec-covid / trec-covid-beir | COVID-19 scientific literature (171K docs) | +22.2% |
-| fever | Fact verification (5.4M docs) | +19.2% |
-| nq | Open-domain QA (2.7M docs) | +17.5% |
-| scifact | Scientific claim evidence | +8.2% |
-| dbpedia-entity | Entity linking retrieval (4.6M docs) | +7.7% |
-| msmarco | Web search (8.8M docs) | +2.4% |
-| **Average (16 datasets)** | — | **MRR@10 +9.4% · NDCG@10 +11.6% · Recall@100 +5.6%** |
-
-**Baseline: original BM25 (defaults, k1=1.2, b=0.75, k3=0, δ=0, rsj IDF)**
-
-The gains above are computed against this baseline on the same queries:
+Each cell shows `original BM25 → AutoBM25` on the same queries (defaults: k1=1.2, b=0.75, k3=0, δ=0, rsj IDF).
 
 | Dataset | MRR@10 | NDCG@10 | Recall@100 |
 |---|---:|---:|---:|
-| arguana | 0.2036 | 0.3158 | 0.9090 |
-| climate-fever | 0.2480 | 0.1778 | 0.4551 |
-| dbpedia-entity | 0.2724 | 0.2330 | 0.4638 |
-| fever | 0.5983 | 0.6105 | 0.9007 |
-| fiqa | 0.1727 | 0.1387 | 0.3429 |
-| hotpotqa | 0.8131 | 0.6478 | 0.7700 |
-| msmarco | 0.4024 | 0.4400 | 0.7490 |
-| nfcorpus | 0.4600 | 0.2633 | 0.1984 |
-| nq | 0.1594 | 0.1774 | 0.5937 |
-| scidocs | 0.2228 | 0.1215 | 0.2936 |
-| scifact | 0.5033 | 0.5388 | 0.8116 |
-| trec-covid | 0.5936 | 0.3322 | 0.0573 |
-| trec-covid-beir | 0.6107 | 0.3394 | 0.0575 |
-| trec-covid-v2 | 0.4079 | 0.2127 | 0.0494 |
-| vihealthqa | 0.3824 | 0.3676 | 0.6248 |
-| webis-touche2020 | 0.4931 | 0.2226 | 0.4336 |
-| **Average** | **0.4090** | **0.3212** | **0.4819** |
-
+| arguana | 0.2036 → 0.1672 | 0.3158 → 0.2610 | 0.9090 → 0.8563 |
+| climate-fever | 0.2480 → 0.1982 | 0.1778 → 0.1375 | 0.4551 → 0.4339 |
+| dbpedia-entity | 0.2724 → 0.2972 | 0.2330 → 0.2510 | 0.4638 → 0.4868 |
+| fever | 0.5983 → 0.7263 | 0.6105 → 0.7277 | 0.9007 → 0.9276 |
+| fiqa | 0.1727 → 0.1818 | 0.1387 → 0.1429 | 0.3429 → 0.3465 |
+| hotpotqa | 0.8131 → 0.8116 | 0.6478 → 0.6582 | 0.7700 → 0.7740 |
+| msmarco | 0.4024 → 0.4116 | 0.4400 → 0.4506 | 0.7490 → 0.7603 |
+| nfcorpus | 0.4600 → 0.4674 | 0.2633 → 0.2684 | 0.1984 → 0.2018 |
+| nq | 0.1594 → 0.1796 | 0.1774 → 0.2083 | 0.5937 → 0.6227 |
+| scidocs | 0.2228 → 0.2360 | 0.1215 → 0.1307 | 0.2936 → 0.3084 |
+| scifact | 0.5033 → 0.5471 | 0.5388 → 0.5829 | 0.8116 → 0.8312 |
+| trec-covid | 0.5936 → 0.6794 | 0.3322 → 0.4060 | 0.0573 → 0.0640 |
+| trec-covid-beir | 0.6107 → 0.6894 | 0.3394 → 0.4147 | 0.0575 → 0.0640 |
+| trec-covid-v2 | 0.4079 → 0.7130 | 0.2127 → 0.4121 | 0.0494 → 0.0755 |
+| vihealthqa | 0.3824 → 0.3495 | 0.3676 → 0.3373 | 0.6248 → 0.5910 |
+| webis-touche2020 | 0.4931 → 0.5727 | 0.2226 → 0.2816 | 0.4336 → 0.4302 |
+| **Average** | **0.4090 → 0.4518** | **0.3212 → 0.3544** | **0.4819 → 0.4859** |
 ## Quick Start
 
 ```bash
