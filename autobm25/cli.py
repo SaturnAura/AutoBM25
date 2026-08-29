@@ -1,9 +1,9 @@
-"""autobm25 命令行入口（两种模式）。
+"""autobm25 command-line entry point (two modes).
 
-用法：
-  autobm25 --dataset dataset/XXX                 # 批量检索：跑完 queries.jsonl，
-                                                 #   结果写回 results.jsonl，有 qrels 附带评测
-  autobm25 --dataset dataset/XXX --interactive   # 交互式检索
+Usage:
+  autobm25 --dataset dataset/XXX                 # batch retrieval: run all queries in queries.jsonl,
+                                                 #   write results to results.jsonl, evaluate if qrels exist
+  autobm25 --dataset dataset/XXX --interactive   # interactive retrieval
 """
 
 import argparse

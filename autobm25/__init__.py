@@ -1,7 +1,7 @@
 """AutoBM25: zero-label BM25 hyperparameter adaptation.
 
-输入文档集 → 提取统计特征 → 参数大字典 O(1) 查表（OOD 防护 + 启发式回退）
-→ 得到 BM25 超参数 → 建索引检索。
+Feed a corpus in -> extract statistical features -> O(1) lookup in the parameter
+dictionary (OOD guard + heuristic fallback) -> get BM25 hyperparameters -> index and search.
 """
 
 import os
@@ -16,9 +16,9 @@ __version__ = "0.1.0"
 
 
 class AutoBM25:
-    """带参数大字典的 BM25 检索器（零标注、零调参）。
+    """BM25 retriever backed by the parameter dictionary (zero-label, zero-tuning).
 
-    用法：:
+    Usage::
 
         from autobm25 import AutoBM25
 
@@ -27,11 +27,11 @@ class AutoBM25:
             "Automatic parameter tuning improves retrieval effectiveness.",
         ]
         retriever = AutoBM25()
-        retriever.index(corpus)                          # 直接传字符串列表即可建索引
-        retriever.params                               # 自动选出的超参数
-        retriever.search("parameter tuning", top_k=5)  # [(doc_id, score), ...]
+        retriever.index(corpus)                          # index a plain list of strings
+        retriever.params                                 # automatically chosen hyperparameters
+        retriever.search("parameter tuning", top_k=5)    # [(doc_id, score), ...]
 
-    也可以直接从数据集目录构建：
+    It can also be built directly from a dataset directory:
 
         retriever = AutoBM25.from_dataset("dataset/fiqa")
     """
@@ -45,13 +45,15 @@ class AutoBM25:
             self.index(docs, queries, use_dictionary=use_dictionary)
 
     def index(self, docs, queries=None, use_dictionary=True):
-        """建立索引：docs 为 [{"id","text"}] 或字符串列表；queries 可选。
+        """Build the index. docs: [{"id","text"}] or a plain list of strings;
+        queries is optional.
 
-        建索引前会自动完成：统计特征提取 → 大字典查表（OOD 防护 + 启发式回退）
-        → 得到 BM25 超参数，无需任何标注。
+        Before indexing, this automatically runs: statistical feature extraction
+        -> parameter dictionary lookup (OOD guard + heuristic fallback)
+        -> BM25 hyperparameters. No labels are needed.
         """
         if not docs:
-            raise ValueError("docs 不能为空（需要至少一篇文档）")
+            raise ValueError("docs must not be empty (need at least one document)")
         if isinstance(docs[0], str):
             docs = [{"id": str(i), "text": t} for i, t in enumerate(docs)]
         self.docs = docs
@@ -73,7 +75,7 @@ class AutoBM25:
 
     @classmethod
     def from_dataset(cls, dataset_path, max_docs=None, use_dictionary=True):
-        """从数据集目录构建（自动识别标准格式 / BEIR 格式）。"""
+        """Build from a dataset directory (standard / BEIR formats auto-detected)."""
         if max_docs and os.path.exists(os.path.join(dataset_path, "corpus.jsonl")):
             docs, queries, _ = load_dataset_subsampled(dataset_path, max_docs)
         else:
@@ -81,7 +83,7 @@ class AutoBM25:
         return cls(docs, queries, use_dictionary=use_dictionary)
 
     def search(self, query, top_k=10):
-        """返回 [(doc_id, score), ...]，按相关性降序。"""
+        """Return [(doc_id, score), ...] sorted by descending relevance."""
         if self.engine is None:
             raise RuntimeError(
                 "no index yet: call index(corpus) first, or build via AutoBM25.from_dataset(path)"

@@ -1,4 +1,4 @@
-"""python -m autobm25 入口。"""
+"""Entry point for `python -m autobm25`."""
 
 from .cli import main
 

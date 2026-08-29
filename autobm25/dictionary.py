@@ -1,7 +1,9 @@
-"""参数大字典（检索侧）：加载、O(1) 最近邻查表、OOD 防护、probe。
+"""Parameter dictionary (retrieval side): loading, O(1) nearest-neighbor lookup,
+out-of-distribution (OOD) guard, and probing.
 
-字典的构建（build_dictionary，grid search 造条目）属于复现流程，
-在本地 research/ 中完成；本模块只负责"用字典"。
+Dictionary construction (build_dictionary, grid-search entries) belongs to the
+research workflow and lives in the local research/ folder; this module only
+consumes the dictionary.
 """
 
 import json
@@ -84,7 +86,8 @@ class ParamDictionary:
         return float(np.sqrt(np.mean([(a[k] - b[k]) ** 2 for k in common])))
 
     def is_oov(self, features):
-        """是否分布外：≥ oov_min_features 个特征超出训练覆盖范围。"""
+        """Whether the features are out-of-distribution:
+        >= oov_min_features features fall outside the training coverage."""
         if not self.reject_oov:
             return False
         n_oov = 0
@@ -99,14 +102,15 @@ class ParamDictionary:
         return n_oov >= self.oov_min_features
 
     def lookup(self, features):
-        """命中返回参数 dict；未命中（距离超阈值或 OOD）返回 None。"""
+        """Return the matched parameter dict, or None on miss (distance above
+        threshold or OOD)."""
         if self.is_oov(features):
             return None
         vec = self._vector(features)
         scored = sorted(
             ((self._distance(vec, self._vector(e["features"])), e["name"], e)
              for e in self.entries),
-            key=lambda x: (x[0], x[1]),  # 距离并列时按条目名排序，避免比较 dict
+            key=lambda x: (x[0], x[1]),  # break ties by entry name (never compare dicts)
         )
         if not scored or scored[0][0] > self.match_threshold:
             return None
@@ -124,7 +128,7 @@ class ParamDictionary:
         return params
 
     def probe(self, features):
-        """匹配诊断：是否 OOD、最近距离、最近条目。"""
+        """Diagnostics: OOD flag, nearest distance, and nearest entry name."""
         oov = self.is_oov(features)
         vec = self._vector(features)
         scored = sorted(

@@ -1,4 +1,4 @@
-"""检索评估指标：MRR@10 / NDCG@10 / Recall@100。"""
+"""Retrieval evaluation metrics: MRR@10 / NDCG@10 / Recall@100."""
 
 import numpy as np
 
@@ -14,7 +14,7 @@ def _relevant_map(qrels):
 
 
 def evaluate_engine(engine, queries, qrels, top_k=100):
-    """对已 build 的引擎打分，返回平均指标。"""
+    """Score an already-built engine and return average metrics."""
     rel = _relevant_map(qrels)
     mrr, ndcg, recall = [], [], []
     for q in queries:
@@ -47,7 +47,7 @@ def evaluate_engine(engine, queries, qrels, top_k=100):
 
 
 def evaluate(docs, queries, qrels, params, top_k=100):
-    """评估单个参数组合。params: {k1, b, k3, delta, idf_type}"""
+    """Evaluate a single parameter combination. params: {k1, b, k3, delta, idf_type}"""
     engine = BM25Engine().build_index(docs)
     engine.set_params(
         k1=params.get("k1"),

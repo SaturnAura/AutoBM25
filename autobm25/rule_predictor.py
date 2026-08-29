@@ -1,11 +1,13 @@
-"""基于统计特征的启发式参数预测（含词典查表 + 回退）。
+"""Heuristic hyperparameter prediction from statistical features
+(with dictionary lookup + fallback).
 
-公式（系数在包的 data/config.yaml，可由 research/ 标定后更新）：
+Formulas (coefficients live in the package's data/config.yaml and can be
+recalibrated by the local research/ workflow):
   k1    = clip(k1_base - alpha_ttr*avg_ttr + alpha_maxtf*min(avg_max_tf/20, 1), 0.5, 3.0)
   b     = clip(b_base + beta_corr*length_tf_corr - beta_cv*cv_len, 0, 1)
   k3    = clip(k3_base*(avg_query_max_tf-1) + k3_rep*query_repeat_ratio, 0, 8)
   delta = clip(gamma_delta*cv_len, 0, 2.0)
-  IDF   = smoothed（若 heaps_beta>0.7 或 hapax_ratio>0.6），否则 rsj
+  IDF   = smoothed (if heaps_beta>0.7 or hapax_ratio>0.6), else rsj
 """
 
 import os
@@ -27,7 +29,7 @@ def clip(x, lo, hi):
 
 
 def predict(features, config=None):
-    """features: extract_features 的输出 -> 参数 dict"""
+    """features: output of extract_features -> parameter dict"""
     config = config or load_config()
     c = config["coefficients"]
     k1 = clip(
@@ -71,7 +73,8 @@ def predict(features, config=None):
 
 
 def predict_with_dictionary(features, config=None, dictionary=None):
-    """先查参数词典（命中返回词典参数），未命中回退到启发式规则。"""
+    """Look up the parameter dictionary first (return dictionary params on hit),
+    falling back to the heuristic rules on miss."""
     if dictionary is None:
         if os.path.exists(DICT_FILE):
             from .dictionary import ParamDictionary

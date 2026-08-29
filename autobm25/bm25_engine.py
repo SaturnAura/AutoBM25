@@ -1,11 +1,11 @@
-"""自实现 BM25 / BM25+ 检索引擎（倒排索引）。
+"""Self-contained BM25 / BM25+ retrieval engine (inverted index).
 
-打分公式：
+Scoring formula:
   BM25:  score += idf(q) * [f(q,D)*(k1+1) / (f(q,D) + k1*(1-b+b*|D|/avgdl))]
-                 * [f(q,Q)*(k3+1) / (f(q,Q) + k3)]           （查询词频饱和项，k3=0 时退化为 1）
-  BM25+: score += idf(q) * [上面那项 + delta]
+                 * [f(q,Q)*(k3+1) / (f(q,Q) + k3)]   (query-TF saturation, 1 when k3=0)
+  BM25+: score += idf(q) * [the term above + delta]
 
-两种 IDF：
+Two IDF variants:
   rsj:      ln((N - df + 0.5) / (df + 0.5))
   smoothed: ln((N + 1) / (df + 1))
 """
@@ -16,7 +16,7 @@ import numpy as np
 
 
 def tokenize(text):
-    """空格分词 + 小写化（按项目要求，不去停用词）。"""
+    """Whitespace tokenization + lowercasing (stopwords are not removed)."""
     return text.lower().split()
 
 
@@ -30,8 +30,8 @@ class BM25Engine:
         self.N = 0
         self.avgdl = 0.0
         self.doc_ids = []     # doc_idx -> doc_id
-        self.doc_len = None   # np.ndarray[int32]，doc_idx -> 词数
-        self.postings = {}    # term -> (doc_idx 数组, tf 数组)
+        self.doc_len = None   # np.ndarray[int32], doc_idx -> token count
+        self.postings = {}    # term -> (doc_idx array, tf array)
         self.doc_freq = {}    # term -> df
         self.idf_cache = {}
 
@@ -85,7 +85,7 @@ class BM25Engine:
         return self.idf_cache[term]
 
     def score_doc(self, term, doc_idx, idf_val):
-        """单文档打分（保留给调试/单点使用；批量检索走 search 的向量化路径）。"""
+        """Score a single document (kept for debugging; batch retrieval uses the vectorized search)."""
         docs_arr, tf_arr = self.postings[term]
         pos = int(np.searchsorted(docs_arr, doc_idx)) if docs_arr[0] <= doc_idx else -1
         if pos >= len(docs_arr) or docs_arr[pos] != doc_idx:
@@ -100,7 +100,7 @@ class BM25Engine:
         return idf_val * tf_part
 
     def search(self, query, top_k=10):
-        """返回 [(doc_id, score), ...]，按分数降序。"""
+        """Return [(doc_id, score), ...] sorted by descending score."""
         if self.N == 0:
             return []
         k1, b, k3, delta, avgdl = self.k1, self.b, self.k3, self.delta, self.avgdl
@@ -115,12 +115,12 @@ class BM25Engine:
                 continue
             doc_idx, tf = post
             idf_val = self.idf(t)
-            # BM25 词频饱和项（向量化）：idf * f*(k1+1) / (f + k1*(1-b+b*dl/avgdl))
+            # Vectorized BM25 TF-saturation term: idf * f*(k1+1) / (f + k1*(1-b+b*dl/avgdl))
             denom = tf + k1 * (1 - b + b * dl[doc_idx] / avgdl) if avgdl > 0 else tf + k1
             part = idf_val * tf * (k1 + 1) / denom
-            if k3 > 0 and qcount > 1:  # 查询词频饱和项：f(q,Q)*(k3+1)/(f(q,Q)+k3)
+            if k3 > 0 and qcount > 1:  # query-TF saturation: f(q,Q)*(k3+1)/(f(q,Q)+k3)
                 part = part * (qcount * (k3 + 1) / (qcount + k3))
-            if delta > 0:  # BM25+ 补偿项
+            if delta > 0:  # BM25+ compensation term
                 part = part + idf_val * delta
             np.add.at(scores, doc_idx, part)
         nonzero = np.flatnonzero(scores)
@@ -128,6 +128,6 @@ class BM25Engine:
             return []
         k = min(top_k, nonzero.size)
         top = nonzero[np.argpartition(scores[nonzero], -k)[-k:]]
-        # 按分数降序、doc_idx 升序排序（分数相同时保持确定性）
+        # Sort by score descending, doc_idx ascending (deterministic on ties)
         order = top[np.lexsort((top, -scores[top]))]
         return [(self.doc_ids[int(i)], float(scores[i])) for i in order]

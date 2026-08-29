@@ -1,4 +1,5 @@
-"""数据集加载（检索侧）：标准格式 + BEIR 格式 + 超大规模流式子采样。"""
+"""Dataset loading (retrieval side): standard format + BEIR format +
+streaming subsampling for huge corpora."""
 
 import json
 import os
@@ -16,11 +17,12 @@ def load_jsonl(path):
 
 
 def load_dataset(path):
-    """返回 (docs, queries, qrels)。
+    """Return (docs, queries, qrels).
 
-    docs:    [{"id", "text"}]；queries: [{"qid", "query"}]；qrels: [{"qid","doc_id","relevance"}]
-    支持标准格式（docs/queries/qrels.jsonl）与 BEIR 格式（corpus.jsonl + qrels/*.tsv），
-    查询与标注可缺省（纯检索场景）。
+    docs:    [{"id", "text"}]; queries: [{"qid", "query"}];
+    qrels:   [{"qid", "doc_id", "relevance"}]
+    Supports the standard format (docs/queries/qrels.jsonl) and BEIR format
+    (corpus.jsonl + qrels/*.tsv); queries and qrels are optional for pure retrieval.
     """
     docs, queries, qrels = [], [], []
     docs_path = os.path.join(path, "docs.jsonl")
@@ -80,7 +82,8 @@ def load_dataset(path):
 
 
 def load_dataset_subsampled(path, max_docs, seed=42):
-    """超大规模语料流式加载 + 分层子采样（相关标注全保留）。"""
+    """Streaming load + stratified subsampling for huge corpora
+    (all relevant annotations are kept)."""
     rng = random.Random(seed)
     qrels_all = []
     relevant_ids = set()
