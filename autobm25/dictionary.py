@@ -104,22 +104,23 @@ class ParamDictionary:
             return None
         vec = self._vector(features)
         scored = sorted(
-            (self._distance(vec, self._vector(e["features"])), e)
-            for e in self.entries
+            ((self._distance(vec, self._vector(e["features"])), e["name"], e)
+             for e in self.entries),
+            key=lambda x: (x[0], x[1]),  # 距离并列时按条目名排序，避免比较 dict
         )
         if not scored or scored[0][0] > self.match_threshold:
             return None
         neighbors = scored[: self.k_neighbors]
         params = {}
         for p in CONTINUOUS_PARAMS:
-            params[p] = float(np.mean([n[1]["params"][p] for n in neighbors]))
+            params[p] = float(np.mean([n[2]["params"][p] for n in neighbors]))
         idf_votes = {}
-        for _, e in neighbors:
+        for _, _, e in neighbors:
             idf_votes[e["params"]["idf_type"]] = idf_votes.get(e["params"]["idf_type"], 0) + 1
         params["idf_type"] = max(idf_votes, key=idf_votes.get)
         params["model_variant"] = "bm25+" if params["delta"] > 0 else "bm25"
         params["_dict_distance"] = round(scored[0][0], 4)
-        params["_dict_match"] = [n[1]["name"] for n in neighbors]
+        params["_dict_match"] = [n[1] for n in neighbors]
         return params
 
     def probe(self, features):
