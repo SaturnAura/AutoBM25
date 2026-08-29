@@ -1,5 +1,9 @@
 # AutoBM25 — Zero-Label, Zero-Tuning BM25 Hyperparameter Adaptation
 
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![pip install](https://img.shields.io/badge/pip%20install-autobm25-brightgreen)](pyproject.toml)
+
 ![AutoBM25 logo](logo/logo.png)
 
 > Feed the corpus's **statistical features** into an **O(1) parameter dictionary** and get the optimal BM25 hyperparameters (k1 / b / k3 / δ / IDF) directly; fall back to interpretable heuristics when nothing matches. Verified on 16 BEIR datasets: **16/16 never worse than defaults, average NDCG@10 +11.6%, dictionary hit rate 92.0%**.
@@ -65,10 +69,17 @@ Or use it as a library:
 ```python
 from autobm25 import AutoBM25
 
-retriever = AutoBM25.from_dataset("dataset/fiqa")
-print(retriever.params)             # hyperparameters chosen for this corpus
-retriever.search("how does tax refund work", top_k=10)
+corpus = [
+    "BM25 is a probabilistic ranking function used in information retrieval.",
+    "Automatic parameter tuning improves retrieval effectiveness.",
+]
+retriever = AutoBM25()
+retriever.index(corpus)                 # index a plain list of strings — no files needed
+print(retriever.params)                 # hyperparameters chosen for this corpus
+retriever.search("parameter tuning", top_k=5)
 ```
+
+Working with dataset directories instead? `AutoBM25.from_dataset("dataset/fiqa")` builds the same thing from standard/BEIR-format folders.
 
 On startup a log line shows the hyperparameters chosen for this dataset (e.g., `k1=0.5 b=0.495 k3=0.7 δ=0.97 idf=smoothed`).
 
