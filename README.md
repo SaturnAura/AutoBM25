@@ -2,7 +2,6 @@
 
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![pip install](https://img.shields.io/badge/pip%20install-autobm25-brightgreen)](pyproject.toml)
 
 ![AutoBM25 logo](logo/logo.png)
 
