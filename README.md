@@ -3,6 +3,8 @@
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
+> 🇨🇳 Chinese version: [README_CN.md](README_CN.md)
+
 ![AutoBM25 logo](logo/logo.png)
 
 > Feed the corpus's **statistical features** into an **O(1) parameter dictionary** and get the optimal BM25 hyperparameters (k1 / b / k3 / δ / IDF) directly; fall back to interpretable heuristics when nothing matches. Verified on 16 BEIR datasets: **16/16 never worse than the BM25 defaults, NDCG@10 +18.0% median / +30.5% mean, 92.0% leave-one-corpus-out dictionary hit rate**.
@@ -34,25 +36,25 @@ Each cell shows `BM25 defaults → AutoBM25` on the same corpus, queries and rel
 judgements (defaults: k1=1.2, b=0.75, k3=0, δ=0, rsj IDF). All 16 datasets improve;
 none is worse than the default it is compared with.
 
-| Dataset | MRR@10 | NDCG@10 | Recall@100 |
-|---|---:|---:|---:|
-| arguana | 0.2036 → 0.2411 | 0.3158 → 0.3654 | 0.9090 → 0.9573 |
-| climate-fever | 0.2480 → 0.3049 | 0.1778 → 0.2241 | 0.4551 → 0.5306 |
-| dbpedia-entity | 0.6674 → 0.6919 | 0.3863 → 0.4158 | 0.4779 → 0.5152 |
-| fever | 0.5983 → 0.8467 | 0.6105 → 0.8322 | 0.9007 → 0.9536 |
-| fiqa | 0.1727 → 0.2050 | 0.1387 → 0.1624 | 0.3429 → 0.3799 |
-| hotpotqa | 0.8131 → 0.8376 | 0.6478 → 0.6803 | 0.7700 → 0.7830 |
-| msmarco | 0.4024 → 0.4162 | 0.4400 → 0.4548 | 0.7490 → 0.7530 |
-| nfcorpus | 0.4600 → 0.4740 | 0.2633 → 0.2738 | 0.1983 → 0.2027 |
-| nq | 0.1594 → 0.1957 | 0.1774 → 0.2266 | 0.5937 → 0.6587 |
-| scidocs | 0.2228 → 0.2596 | 0.1215 → 0.1444 | 0.2936 → 0.3260 |
-| scifact | 0.5033 → 0.5574 | 0.5388 → 0.5945 | 0.8116 → 0.8334 |
-| trec-covid | 0.5936 → 0.7832 | 0.3322 → 0.5011 | 0.0573 → 0.0764 |
-| trec-covid-beir | 0.6107 → 0.7982 | 0.3394 → 0.5113 | 0.0575 → 0.0761 |
-| trec-covid-v2 | 0.4079 → 0.7941 | 0.2127 → 0.5041 | 0.0495 → 0.0933 |
-| vihealthqa | 0.3824 → 0.3921 | 0.3676 → 0.3758 | 0.6247 → 0.6289 |
-| webis-touche2020 | 0.4931 → 0.7170 | 0.2226 → 0.3901 | 0.4336 → 0.5250 |
-| **Average** | **0.4337 → 0.5322** | **0.3308 → 0.4160** | **0.4828 → 0.5183** |
+| Dataset          | MRR@10              | NDCG@10             | Recall@100          |
+| ---------------- | ------------------: | ------------------: | ------------------: |
+| arguana          | 0.2036 → 0.2411     | 0.3158 → 0.3654     | 0.9090 → 0.9573     |
+| climate-fever    | 0.2480 → 0.3049     | 0.1778 → 0.2241     | 0.4551 → 0.5306     |
+| dbpedia-entity   | 0.6674 → 0.6919     | 0.3863 → 0.4158     | 0.4779 → 0.5152     |
+| fever            | 0.5983 → 0.8467     | 0.6105 → 0.8322     | 0.9007 → 0.9536     |
+| fiqa             | 0.1727 → 0.2050     | 0.1387 → 0.1624     | 0.3429 → 0.3799     |
+| hotpotqa         | 0.8131 → 0.8376     | 0.6478 → 0.6803     | 0.7700 → 0.7830     |
+| msmarco          | 0.4024 → 0.4162     | 0.4400 → 0.4548     | 0.7490 → 0.7530     |
+| nfcorpus         | 0.4600 → 0.4740     | 0.2633 → 0.2738     | 0.1983 → 0.2027     |
+| nq               | 0.1594 → 0.1957     | 0.1774 → 0.2266     | 0.5937 → 0.6587     |
+| scidocs          | 0.2228 → 0.2596     | 0.1215 → 0.1444     | 0.2936 → 0.3260     |
+| scifact          | 0.5033 → 0.5574     | 0.5388 → 0.5945     | 0.8116 → 0.8334     |
+| trec-covid       | 0.5936 → 0.7832     | 0.3322 → 0.5011     | 0.0573 → 0.0764     |
+| trec-covid-beir  | 0.6107 → 0.7982     | 0.3394 → 0.5113     | 0.0575 → 0.0761     |
+| trec-covid-v2    | 0.4079 → 0.7941     | 0.2127 → 0.5041     | 0.0495 → 0.0933     |
+| vihealthqa       | 0.3824 → 0.3921     | 0.3676 → 0.3758     | 0.6247 → 0.6289     |
+| webis-touche2020 | 0.4931 → 0.7170     | 0.2226 → 0.3901     | 0.4336 → 0.5250     |
+| **Average**      | **0.4337 → 0.5322** | **0.3308 → 0.4160** | **0.4828 → 0.5183** |
 
 Relative NDCG@10 gain over the 16 corpora: **+18.0% median, +30.5% mean** (worst
 +2.2%, best +137.0%).
@@ -99,14 +101,10 @@ directory layout is required. Pass `queries=[...]` to `index()` as well and the
 query-side statistics (query length, query/term overlap, idf) join the same feature
 vector.
 
-If your documents already live in files, point the CLI at that directory - it is a
-convenience wrapper over the same API, not a requirement:
-
-```bash
-autobm25 --dataset dataset/XXX                 # batch: run queries.jsonl -> results.jsonl, evaluate if qrels exist
-autobm25 --dataset dataset/XXX --interactive   # type a query, press Enter, exit with "exit"
-autobm25 --demo                                # built-in corpus, no files at all
-```
+Documents already in files? `autobm25 --dataset dataset/XXX` runs the same pipeline
+over a directory, and `--interactive` turns it into a prompt - the CLI is a
+convenience wrapper over this API, not a requirement. `autobm25 --demo` needs no files
+at all.
 
 On startup a log line shows the hyperparameters chosen for this dataset (e.g., `k1=0.5 b=0.495 k3=0.7 δ=0.97 idf=smoothed`).
 
@@ -138,29 +136,32 @@ The whole pipeline is: load -> tokenize + index -> features -> predict -> search
 The extension covers the three middle stages plus scoring; the two Python stages are
 the ones where Python is simply the right tool.
 
-| stage | implementation | cost |
-|---|---|---|
-| loading documents and queries | Python | I/O + `json` parsing, seconds to tens of seconds on multi-GB files; this is why the loader is *not* in Rust |
-| tokenize + inverted index (`build_index`) | **Rust** | one pass over the corpus; also collects the feature statistics on the way |
-| feature vector (`extract_features`) | **Rust** | read off that same pass instead of re-tokenizing |
-| parameter prediction (dictionary lookup + heuristics) | Python | O(1): 48 entries x 21 features, **0.1-0.5 ms per corpus**, cached config/dictionary |
-| `search` / `search_many` | **Rust** | posting-list accumulation, GIL released, one scorer per worker thread |
-| evaluation metrics (CLI batch mode) | Python | numpy over the returned rankings, milliseconds |
+| Stage                                                 | Implementation | Cost                                                                                                        |
+| ----------------------------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------- |
+| loading documents and queries                         | Python         | I/O + `json` parsing, seconds to tens of seconds on multi-GB files; this is why the loader is *not* in Rust |
+| tokenize + inverted index (`build_index`)             | **Rust**       | one pass over the corpus; also collects the feature statistics on the way                                   |
+| feature vector (`extract_features`)                   | **Rust**       | read off that same pass instead of re-tokenizing                                                            |
+| parameter prediction (dictionary lookup + heuristics) | Python         | O(1): 48 entries x 21 features, **0.1-0.5 ms per corpus**, cached config/dictionary                         |
+| `search` / `search_many`                              | **Rust**       | posting-list accumulation, GIL released, one scorer per worker thread                                       |
+| evaluation metrics (CLI batch mode)                   | Python         | numpy over the returned rankings, milliseconds                                                              |
 
 The loader stays in Python because it is I/O plus JSON parsing, and on the multi-GB
 corpora it is the dominant wall-clock cost - a Rust rewrite would not change the
 disk reads. Prediction stays in Python for a different reason: it is a constant-time
-lookup, so vectorizing it buys nothing. Reproduce the per-stage split on your own
-machine with `python research/stage_profile.py --dataset scifact [--no-rust]`.
+lookup (0.1-0.5 ms against a 3 s index build), so moving it would buy nothing.
 
 ### What the Rust extension replaces
 
-| stage | Python | Rust |
-|---|---|---|
-| tokenize + term counting | `str.lower().split()` plus a dict operation per token | one pass over the corpus; terms live in a flat table, so only the first occurrence of a term hashes its string |
-| feature statistics | re-tokenizes every document, and keeps a per-document dict for **all** of them in memory | read off the index build — the corpus is tokenized **once**, not twice |
-| inverted index | one `np.asarray` per distinct term over Python-built posting lists | postings are built during that same pass |
-| BM25 scoring | vectorized, but `np.add.at` scatter-add plus a full-array sort per query | posting-list accumulation, no per-query allocation, GIL released, one scorer per worker thread |
+The bottleneck is not scoring — that part is already vectorized numpy. It is a Python
+loop over every token in the corpus with a dictionary operation per token, **run
+twice**: once to collect the feature statistics and once to build the inverted index.
+
+| Stage                    | Python                                                                                   | Rust                                                                                                           |
+| ------------------------ | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| tokenize + term counting | `str.lower().split()` plus a dict operation per token                                    | one pass over the corpus; terms live in a flat table, so only the first occurrence of a term hashes its string |
+| feature statistics       | re-tokenizes every document, and keeps a per-document dict for **all** of them in memory | read off the index build — the corpus is tokenized **once**, not twice                                         |
+| inverted index           | one `np.asarray` per distinct term over Python-built posting lists                       | postings are built during that same pass                                                                       |
+| BM25 scoring             | vectorized, but `np.add.at` scatter-add plus a full-array sort per query                 | posting-list accumulation, no per-query allocation, GIL released, one scorer per worker thread                 |
 
 `index()` therefore tokenizes the corpus once instead of twice, which is the single
 largest change. The pure-Python `BM25Engine` is unchanged and still available.
@@ -182,56 +183,28 @@ retriever.search("parameter tuning", top_k=5)
 print(autobm25.BACKEND)               # "rust"
 ```
 
-Three ways to hand this package to someone else:
-
-| how you distribute it | what the other person needs |
-|---|---|
-| a built wheel, e.g. `dist/autobm25-0.1.0-cp39-abi3-win_amd64.whl` | `pip install <wheel>` and nothing else — the extension is inside |
-| wheels published on an index, one per platform | `pip install autobm25`; pip picks the wheel matching their OS/CPU |
-| a source checkout | a Rust toolchain gives them the fast path (`pip install .` compiles it automatically); without one they still get a fully working pure-Python package |
-
-`abi3-py39` means one wheel covers CPython 3.9 and every later version **on that
-platform**, so the build matrix is per OS/architecture (`win_amd64`,
-`manylinux_x86_64`, `macosx_arm64`, …) rather than per Python version. A single
-universal wheel is not possible: a compiled extension is platform-specific by
-definition, which is also why a source checkout with no compiled extension
-present builds as a `py3-none-any` pure-Python wheel instead.
+That is what a wheel gives you: `pip install <wheel>` (or `pip install autobm25` from
+an index, where pip picks the wheel matching the OS/CPU) and nothing else, because the
+extension is already inside. `abi3-py39` is what makes the matrix manageable - one
+binary per **platform** serves CPython 3.9 and every later version, so wheels are
+built per OS/architecture (`win_amd64`, `manylinux_x86_64`, `macosx_arm64`, …) rather
+than per Python version. A single universal wheel is not possible: a compiled
+extension is platform-specific by definition, which is also why a source checkout
+with no compiled extension present builds a `py3-none-any` pure-Python wheel.
 
 Nothing here is ever fatal. `autobm25/_accel.py` imports the extension when it is
 there and falls back to the Python engine when it is not, so `import autobm25`
 cannot fail because of a missing or mismatched binary — it only runs ~7× slower.
-`AUTOBM25_NO_RUST=1` forces the Python backend, and `autobm25.backend_info()`
-explains which one is live.
+`AUTOBM25_NO_RUST=1` forces the Python backend at runtime,
+`AUTOBM25_SKIP_RUST_BUILD=1` skips the compile step during an install, and
+`autobm25.backend_info()` explains which backend is live.
 
-You can check all of this on your own machine:
-
-```bash
-python _bench/verify_wheel.py
-```
-
-It builds a wheel, installs it into a temporary directory, and imports it in a
-subprocess whose `PATH` has no `cargo` and whose `CARGO_HOME` / `RUSTUP_HOME` point
-at directories that do not exist — then asserts that the backend really is the
-PyO3 extension and that `AUTOBM25_NO_RUST=1` still works.
-
-### Building it yourself
-
-```bash
-python rust/build_pyext.py             # cargo build --release --features python
-python rust/build_pyext.py --check     # ... and verify it imports
-```
-
-The result is installed into the package as `autobm25/_autobm25_rs.pyd`. It is
-built with `abi3-py39`, so a single binary serves CPython 3.9+. Toolchains are
-tried in order — the default first, then any installed `*-windows-gnu` one, since
-a default MSVC toolchain without the Visual C++ linker fails at link time while
-MinGW beside it works; `--toolchain <name>` pins one explicitly. The `autobm25-rs`
-command-line binary in `rust/` builds with plain `cargo build --release` and needs
-no Python at all.
-
-You rarely need to call this by hand: `setup.py` runs it during `pip install .` /
-`pip wheel .` whenever the extension is missing and `cargo` is on PATH, and reuses
-an already-built binary otherwise. Set `AUTOBM25_SKIP_RUST_BUILD=1` to skip it.
+From a source checkout it comes down to `cargo`: with a toolchain on PATH,
+`pip install .` compiles the extension for you, and `python rust/build_pyext.py`
+does the same thing by hand (`--check` also verifies that it imports). Without a
+toolchain you still get a fully working pure-Python package. Toolchains are tried in
+order - the default first, then any installed `*-windows-gnu` one - and
+`--toolchain <name>` pins one explicitly.
 
 ### Measured speedup
 
@@ -239,12 +212,12 @@ an already-built binary otherwise. Set `AUTOBM25_SKIP_RUST_BUILD=1` to skip it.
 process, `top_k=100`; the Python column is the same package with
 `AUTOBM25_NO_RUST=1`.
 
-| dataset | docs | tokens | queries | build index + features | search (all queries) | end-to-end |
-|---|---:|---:|---:|---:|---:|---:|
-| arguana | 8,674 | 1.45M | 1,406 | 1.79 s → 0.25 s (**7.3×**) | 3.43 s → 0.24 s (**14.3×**) | 5.28 s → 0.57 s (**9.3×**) |
-| scifact | 5,183 | 1.11M | 1,109 | 1.33 s → 0.15 s (**9.1×**) | 0.33 s → 0.07 s (**4.8×**) | 1.71 s → 0.26 s (**6.5×**) |
-| nfcorpus | 3,633 | 0.85M | 3,237 | 0.99 s → 0.12 s (**8.3×**) | 0.31 s → 0.07 s (**4.1×**) | 1.42 s → 0.31 s (**4.6×**) |
-| trec-covid-v2 | 129,179 | 27.2M | 50 | 36.04 s → 3.78 s (**9.5×**) | 0.34 s → 0.06 s (**5.7×**) | 37.39 s → 4.86 s (**7.7×**) |
+| Dataset       | Docs    | Tokens | Queries | Build index + features      | Search (all queries)        | End-to-end                  |
+| ------------- | ------: | -----: | ------: | --------------------------: | --------------------------: | --------------------------: |
+| arguana       | 8,674   | 1.45M  | 1,406   | 1.79 s → 0.25 s (**7.3×**)  | 3.43 s → 0.24 s (**14.3×**) | 5.28 s → 0.57 s (**9.3×**)  |
+| scifact       | 5,183   | 1.11M  | 1,109   | 1.33 s → 0.15 s (**9.1×**)  | 0.33 s → 0.07 s (**4.8×**)  | 1.71 s → 0.26 s (**6.5×**)  |
+| nfcorpus      | 3,633   | 0.85M  | 3,237   | 0.99 s → 0.12 s (**8.3×**)  | 0.31 s → 0.07 s (**4.1×**)  | 1.42 s → 0.31 s (**4.6×**)  |
+| trec-covid-v2 | 129,179 | 27.2M  | 50      | 36.04 s → 3.78 s (**9.5×**) | 0.34 s → 0.06 s (**5.7×**)  | 37.39 s → 4.86 s (**7.7×**) |
 
 *end-to-end* = load + parameter prediction + index + features + search. The split
 path (`extract_features` and `build_index` called separately, each tokenizing the
@@ -258,10 +231,10 @@ slowest, and the batch path uses every core with the GIL released.
 
 ### Parity
 
-`python _bench/bench_backend.py <dataset> --compare` runs both backends over the
-same data and diffs the feature vector, the chosen hyperparameters, the full ranked
-list of every query, and MRR@10 / NDCG@10 / Recall@100. On scifact, nfcorpus,
-arguana and trec-covid-v2:
+Running both backends over the same corpus and diffing the feature vector, the chosen
+hyperparameters, the full ranked list of every query and MRR@10 / NDCG@10 /
+Recall@100 gives the same answer either way. On scifact, nfcorpus, arguana and
+trec-covid-v2:
 
 - feature values agree to ≤1e-11 — they come from different floating-point summation
   orders over identical numbers — and the chosen hyperparameters are identical;
@@ -271,24 +244,6 @@ arguana and trec-covid-v2:
   wins). Scores stay bitwise equal, MRR@10 and NDCG@10 are unaffected, and
   Recall@100 can move in the 4th decimal when the tied document at rank 100 is
   judged relevant in one list but not the other.
-
-## Bringing your own data
-
-AutoBM25 asks for two things - documents and queries - and how you store them is
-your call. There is no required dataset directory and no required file format:
-
-| what you have | how to hand it over |
-|---|---|
-| a list in memory | `retriever.index(docs)` - strings or `{"id", "text"}` records |
-| a dataframe / database / API | build that same list (`[{"id", "text"}]` or plain strings) and call `index()` |
-| files on disk | `AutoBM25.from_dataset("path/")`, or the `autobm25 --dataset path/` CLI |
-
-`from_dataset` is a convenience wrapper, not a contract: it auto-detects the two
-layouts you meet in the wild - the simple one (`docs.jsonl`, `queries.jsonl`,
-`qrels.jsonl`) and BEIR (`corpus.jsonl`, `queries.jsonl`, `qrels/*.tsv`) - and
-otherwise does exactly what a manual `index(docs)` call does. Documents are the
-only required input; queries can be typed interactively and qrels are needed only
-if you want the CLI to print an evaluation.
 
 ## Limitations
 
@@ -301,7 +256,10 @@ if you want the CLI to print an evaluation.
   entirely and land on the heuristics). The OOD guard and the heuristic fallback
   limit the damage; they do not remove it. If your corpus is not represented in the
   dictionary, validate the returned parameters before trusting them.
-- **Non-English corpora**: features include English-stopword-density and other language-dependent terms; non-English corpora (e.g., Vietnamese vihealthqa) need language-agnostic features or a separate section of the dictionary.
+- **Non-English corpora**: a few features are language-dependent (English stopword
+  density, stopword-filtered term statistics). Vietnamese vihealthqa is in the
+  dictionary and lands at +2.2%, but for a language the dictionary has never seen,
+  validate the returned parameters before trusting them.
 
 ## Project Structure
 
