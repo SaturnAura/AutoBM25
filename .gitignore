@@ -1,11 +1,48 @@
+# ---------------------------------------------------------------------------
+# Local-only material. Everything below stays on the machine that produced it:
+# the corpora, the experiments behind the shipped dictionary, and the scratch
+# tooling. Only the package itself (autobm25/, rust/, setup.py, READMEs) is
+# meant to reach a clone or a wheel.
+# ---------------------------------------------------------------------------
+
+# Datasets (BEIR downloads, subsamples, language splits) - fetched, never shipped
+dataset/
 dataset_en/
 dataset_cn/
-dataset/
+datasets/
+
+# Research pipeline output: benchmark tables, grid searches, mixes, documents
+results/
+research/
+document/
+
+# Local tooling and scratch directories (bench harnesses, downloaded installers)
+_bench/
+_tools/
+_scratch/
+
+# ---------------------------------------------------------------------------
+# Python build artefacts
+# ---------------------------------------------------------------------------
 __pycache__/
-*.pyc
+*.py[cod]
 *.egg-info/
 build/
 dist/
-results/*
-document/*
-research/*
+.venv/
+venv/
+.pytest_cache/
+
+# ---------------------------------------------------------------------------
+# Rust build output and the compiled Python extension.
+#
+# `rust/` itself is deliberately *tracked*: the sources are what let a user
+# compile the accelerator on their own machine (`python rust/build_pyext.py`).
+# Only the artefacts are ignored - `rust/target/` is cargo's scratch directory
+# and the compiled extension is rebuilt by `pip install .` / `pip wheel .`
+# (see setup.py), so a stale binary can never be committed by accident.
+# ---------------------------------------------------------------------------
+rust/target/
+*.pyd
+*.so
+*.dylib

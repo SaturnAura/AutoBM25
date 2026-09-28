@@ -26,6 +26,9 @@ FEATURE_KEYS = [
 
 CONTINUOUS_PARAMS = ("k1", "b", "k3", "delta")
 
+#: Loaded dictionaries, keyed by (path, file stamp). See `cached_dictionary`.
+_CACHE = {}
+
 
 class ParamDictionary:
     def __init__(self, entries, feature_keys=FEATURE_KEYS, k_neighbors=1,
@@ -49,6 +52,10 @@ class ParamDictionary:
                     self.std[key] = float(np.std(vals)) or 1.0
                     self.fmin[key] = float(np.min(vals))
                     self.fmax[key] = float(np.max(vals))
+        # A lookup compares the query corpus against every entry, and the entries
+        # never change after construction, so normalize them once here rather than
+        # re-scaling all of them on every `lookup()` call.
+        self._entry_vectors = [self._vector(e["features"]) for e in entries]
 
     @classmethod
     def load(cls, path=DEFAULT_DICT_PATH):
@@ -108,8 +115,8 @@ class ParamDictionary:
             return None
         vec = self._vector(features)
         scored = sorted(
-            ((self._distance(vec, self._vector(e["features"])), e["name"], e)
-             for e in self.entries),
+            ((self._distance(vec, entry_vec), e["name"], e)
+             for entry_vec, e in zip(self._entry_vectors, self.entries)),
             key=lambda x: (x[0], x[1]),  # break ties by entry name (never compare dicts)
         )
         if not scored or scored[0][0] > self.match_threshold:
@@ -132,11 +139,32 @@ class ParamDictionary:
         oov = self.is_oov(features)
         vec = self._vector(features)
         scored = sorted(
-            (self._distance(vec, self._vector(e["features"])), e["name"])
-            for e in self.entries
+            (self._distance(vec, entry_vec), e["name"])
+            for entry_vec, e in zip(self._entry_vectors, self.entries)
         )
         return {
             "oov": oov,
             "distance": round(scored[0][0], 4) if scored else None,
             "match": scored[0][1] if scored else None,
         }
+
+
+def cached_dictionary(path=DEFAULT_DICT_PATH):
+    """`ParamDictionary.load` with a process-level cache.
+
+    Parsing the dictionary and normalizing its entries costs a few milliseconds -
+    irrelevant once per process, but not when a caller indexes thousands of small
+    corpora in a loop. The cache key carries the file's stamp, so editing or
+    regenerating the dictionary on disk still takes effect immediately.
+    """
+    try:
+        stat = os.stat(path)
+        key = (path, stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        key = (path, None, None)
+    dictionary = _CACHE.get(key)
+    if dictionary is None:
+        dictionary = ParamDictionary.load(path)
+        _CACHE.clear()  # one dictionary per process is the normal case
+        _CACHE[key] = dictionary
+    return dictionary

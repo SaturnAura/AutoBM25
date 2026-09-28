@@ -14,14 +14,23 @@ def _relevant_map(qrels):
 
 
 def evaluate_engine(engine, queries, qrels, top_k=100):
-    """Score an already-built engine and return average metrics."""
+    """Score an already-built engine and return average metrics.
+
+    Uses the engine's batched search when it has one, so the Rust backend runs the
+    whole query set in parallel instead of once per Python loop iteration.
+    """
     rel = _relevant_map(qrels)
     mrr, ndcg, recall = [], [], []
-    for q in queries:
+    batch = getattr(engine, "search_many", None)
+    if batch is not None:
+        ranked_lists = batch([q["query"] for q in queries], top_k=top_k)
+    else:
+        ranked_lists = [engine.search(q["query"], top_k=top_k) for q in queries]
+    for q, ranked in zip(queries, ranked_lists):
         rels = rel.get(q["qid"])
         if not rels:
             continue
-        ranked_ids = [doc_id for doc_id, _ in engine.search(q["query"], top_k=top_k)]
+        ranked_ids = [doc_id for doc_id, _ in ranked]
         rr = 0.0
         for i, doc_id in enumerate(ranked_ids[:10]):
             if doc_id in rels:

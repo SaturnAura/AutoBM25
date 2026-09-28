@@ -1,5 +1,6 @@
 [build-system]
-requires = ["setuptools>=61"]
+# `wheel` provides bdist_wheel for setuptools < 70.1 (newer setuptools bundles it).
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -24,4 +25,8 @@ autobm25 = "autobm25.cli:main"
 packages = ["autobm25"]
 
 [tool.setuptools.package-data]
-autobm25 = ["data/*.json", "data/*.txt", "data/*.yaml"]
+# The compiled PyO3 extension is optional: the globs simply match nothing when it
+# has not been built, in which case the package is a pure-Python `py3-none-any`
+# wheel. When it is present the wheel is tagged for this platform instead (see
+# setup.py), so pip never installs a binary on a platform that cannot run it.
+autobm25 = ["data/*.json", "data/*.txt", "data/*.yaml", "*.pyd", "*.so", "*.dylib"]

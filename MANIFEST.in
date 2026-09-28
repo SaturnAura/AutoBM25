@@ -1,0 +1,6 @@
+# Ship the Rust sources in the sdist so `pip install autobm25` from an sdist can
+# still compile the extension when a toolchain is available. Built artifacts and
+# the cargo target directory stay out of the archive.
+include LICENSE README.md README_CN.md
+recursive-include rust *.rs Cargo.toml Cargo.lock build_pyext.py README.md
+prune rust/target

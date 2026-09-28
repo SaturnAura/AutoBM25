@@ -6,6 +6,7 @@ dictionary (OOD guard + heuristic fallback) -> get BM25 hyperparameters -> index
 
 import os
 
+from . import _accel
 from .bm25_engine import BM25Engine, tokenize
 from .dictionary import ParamDictionary
 from .feature_extractor import extract_features
@@ -13,6 +14,9 @@ from .loader import load_dataset, load_dataset_subsampled
 from .rule_predictor import predict, predict_with_dictionary
 
 __version__ = "0.1.0"
+
+#: `"rust"` when the PyO3 extension is loaded, `"python"` otherwise.
+BACKEND = _accel.BACKEND
 
 
 class AutoBM25:
@@ -57,13 +61,19 @@ class AutoBM25:
         if isinstance(docs[0], str):
             docs = [{"id": str(i), "text": t} for i, t in enumerate(docs)]
         self.docs = docs
-        self.features = extract_features(docs, queries or [])
+        self.engine = BM25Engine().build_index(docs)
+        # On the Rust backend the index build already collected every statistic the
+        # feature vector needs, so this is a lookup rather than a second pass over
+        # the corpus; the Python backend has to re-tokenize everything.
+        if self.engine.uses_rust:
+            self.features = self.engine.features(queries or [])
+        else:
+            self.features = extract_features(docs, queries or [])
         self.params = (
             predict_with_dictionary(self.features)
             if use_dictionary
             else predict(self.features)
         )
-        self.engine = BM25Engine().build_index(docs)
         self.engine.set_params(
             k1=self.params["k1"],
             b=self.params["b"],
@@ -90,11 +100,31 @@ class AutoBM25:
             )
         return self.engine.search(query, top_k=top_k)
 
+    def search_many(self, queries, top_k=10, threads=None):
+        """Batch variant of `search`.
+
+        `queries` is a plain list of query strings; the result is one ranked list
+        per query, in input order. On the Rust backend the batch runs in parallel
+        with the GIL released.
+        """
+        if self.engine is None:
+            raise RuntimeError(
+                "no index yet: call index(corpus) first, or build via AutoBM25.from_dataset(path)"
+            )
+        return self.engine.search_many(list(queries), top_k=top_k, threads=threads)
+
+    @property
+    def backend(self):
+        """`"rust"` or `"python"` - which implementation this retriever is running."""
+        return self.engine.backend() if self.engine is not None else _accel.BACKEND
+
 
 __all__ = [
     "AutoBM25",
+    "BACKEND",
     "BM25Engine",
     "ParamDictionary",
+    "backend_info",
     "extract_features",
     "load_dataset",
     "load_dataset_subsampled",
@@ -103,3 +133,8 @@ __all__ = [
     "tokenize",
     "__version__",
 ]
+
+
+def backend_info():
+    """Which retrieval backend is loaded, and why (if it is not the Rust one)."""
+    return _accel.backend_info()

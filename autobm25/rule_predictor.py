@@ -10,6 +10,7 @@ recalibrated by the local research/ workflow):
   IDF   = smoothed (if heaps_beta>0.7 or hapax_ratio>0.6), else rsj
 """
 
+import copy
 import os
 
 import yaml
@@ -18,10 +19,32 @@ _PKG_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(_PKG_DIR, "data", "config.yaml")
 DICT_FILE = os.path.join(_PKG_DIR, "data", "param_dictionary.json")
 
+#: Parsed config, keyed by (path, file stamp). YAML parsing is ~3 ms, which is
+#: invisible once per process and very visible when a caller loops over corpora.
+_CONFIG_CACHE = {}
+
 
 def load_config():
-    with open(CONFIG_FILE, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    """The heuristic coefficients / defaults / grid space, parsed once per file.
+
+    Cached against the file's mtime and size, so a recalibrated config on disk is
+    picked up without restarting the process.
+    """
+    try:
+        stat = os.stat(CONFIG_FILE)
+        key = (CONFIG_FILE, stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        key = (CONFIG_FILE, None, None)
+    config = _CONFIG_CACHE.get(key)
+    if config is None:
+        with open(CONFIG_FILE, encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+        _CONFIG_CACHE.clear()
+        _CONFIG_CACHE[key] = config
+    # A copy per call: callers do mutate what they get back (research tooling
+    # rewrites coefficients before saving), and a shared dict would leak that into
+    # the next call. Copying is two orders of magnitude cheaper than re-parsing.
+    return copy.deepcopy(config)
 
 
 def clip(x, lo, hi):
@@ -77,8 +100,10 @@ def predict_with_dictionary(features, config=None, dictionary=None):
     falling back to the heuristic rules on miss."""
     if dictionary is None:
         if os.path.exists(DICT_FILE):
-            from .dictionary import ParamDictionary
-            dictionary = ParamDictionary.load(DICT_FILE)
+            # Cached: a lookup happens once per indexed corpus, and re-parsing the
+            # JSON for every one of them is the only measurable cost in this stage.
+            from .dictionary import cached_dictionary
+            dictionary = cached_dictionary(DICT_FILE)
     if dictionary is not None:
         hit = dictionary.lookup(features)
         if hit is not None:

@@ -1,0 +1,38 @@
+[package]
+name = "autobm25"
+version = "0.1.0"
+edition = "2021"
+description = "Rust rewrite of the AutoBM25 retrieval core (zero-label BM25 hyperparameter adaptation)"
+license = "MIT"
+
+[lib]
+name = "autobm25"
+path = "src/lib.rs"
+# `rlib` for the CLI binary, `cdylib` for the PyO3 extension module.
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "autobm25-rs"
+path = "src/main.rs"
+
+[dependencies]
+# The CLI binary and the core library stay dependency-free: `pyo3` is optional and
+# only pulled in for the Python extension build (`--features python`).
+pyo3 = { version = "0.22", features = [
+    "extension-module",
+    "abi3-py39",
+], optional = true }
+
+[features]
+default = []
+# Builds the `_autobm25_rs` extension module instead of the standalone binary.
+python = ["dep:pyo3"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+# `panic = "abort"` would take the whole interpreter down with it when the crate is
+# loaded as a Python extension, so panics unwind into a `PanicException` instead.
+panic = "unwind"
+strip = "symbols"

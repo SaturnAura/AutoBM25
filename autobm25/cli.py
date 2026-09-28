@@ -1,9 +1,11 @@
-"""autobm25 command-line entry point (two modes).
+"""autobm25 command-line entry point.
 
 Usage:
+  autobm25 --demo                                # built-in demo corpus, no files needed
   autobm25 --dataset dataset/XXX                 # batch retrieval: run all queries in queries.jsonl,
                                                  #   write results to results.jsonl, evaluate if qrels exist
   autobm25 --dataset dataset/XXX --interactive   # interactive retrieval
+  autobm25 --demo --interactive                  # type queries against the demo corpus
 """
 
 import argparse
@@ -35,16 +37,20 @@ def _log_params(name, docs, params):
     )
 
 
-def _build_engine(docs, params):
+def _index_and_predict(docs, queries, args):
+    """Build the engine and pick the hyperparameters.
+
+    On the Rust backend the index build already produced the corpus statistics, so
+    the feature vector comes for free instead of costing a second tokenizing pass.
+    """
     engine = BM25Engine().build_index(docs)
-    engine.set_params(
-        k1=params.get("k1"),
-        b=params.get("b"),
-        k3=params.get("k3"),
-        delta=params.get("delta"),
-        idf_type=params.get("idf_type"),
-    )
-    return engine
+    if engine.uses_rust:
+        features = engine.features(queries)
+    else:
+        features = extract_features(docs, queries)
+    params = _choose_params(features, args)
+    print(f"[AutoBM25] backend: {engine.explain()}")
+    return engine, params
 
 
 def _set_engine_params(engine, params):
@@ -66,16 +72,17 @@ def cmd_batch(args):
         raise SystemExit(
             f"[AutoBM25] {args.dataset} has no queries.jsonl; use --interactive to type queries."
         )
-    features = extract_features(docs, queries)
-    params = _choose_params(features, args)
+    engine, params = _index_and_predict(docs, queries, args)
     _log_params(name, docs, params)
-    engine = _build_engine(docs, params)
+    _set_engine_params(engine, params)
     top_k = args.topk or 100
 
     results_path = os.path.join(args.dataset, "results.jsonl")
+    # One batched search for the whole query set: the Rust backend runs it in
+    # parallel with the GIL released, the Python backend loops.
+    ranked = engine.search_many([q["query"] for q in queries], top_k=top_k)
     with open(results_path, "w", encoding="utf-8") as f:
-        for q in queries:
-            hits = engine.search(q["query"], top_k=top_k)
+        for q, hits in zip(queries, ranked):
             f.write(
                 json.dumps(
                     {"qid": q["qid"],
@@ -111,10 +118,28 @@ def cmd_interactive(args):
     docs, queries, _ = _load(args)
     if not docs:
         raise SystemExit(f"[AutoBM25] {args.dataset} has no documents (need docs.jsonl or corpus.jsonl)")
-    features = extract_features(docs, queries)
-    params = _choose_params(features, args)
+    _run_interactive(name, docs, queries, args)
+
+
+def cmd_demo(args):
+    """The built-in corpus: the library API end to end, without any dataset files."""
+    from .demo import DEMO_DOCS, demo_queries, run_demo
+
+    if not args.interactive:
+        run_demo(top_k=args.topk or 3, use_dictionary=not args.no_dict)
+        print()
+        print("[AutoBM25] try your own corpus: examples/quickstart.py, or "
+              "autobm25 --demo --interactive to type queries against this one")
+        return
+    docs = [{"id": d["id"], "text": d["text"]} for d in DEMO_DOCS]
+    queries = [{"query": q} for q in demo_queries()]
+    _run_interactive("demo (built-in)", docs, queries, args)
+
+
+def _run_interactive(name, docs, queries, args):
+    engine, params = _index_and_predict(docs, queries, args)
     _log_params(name, docs, params)
-    engine = _build_engine(docs, params)
+    _set_engine_params(engine, params)
     top_k = args.topk or 10
     print("[AutoBM25] interactive mode: type a query, press Enter; type exit/quit to quit")
     while True:
@@ -139,7 +164,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="AutoBM25: zero-label BM25 hyperparameter adaptation (batch / interactive)"
     )
-    parser.add_argument("--dataset", required=True, help="dataset directory, e.g. dataset/fiqa")
+    parser.add_argument("--dataset", help="dataset directory, e.g. dataset/fiqa")
+    parser.add_argument("--demo", action="store_true",
+                        help="run the built-in demo corpus (no dataset directory needed)")
     parser.add_argument("--interactive", action="store_true",
                         help="interactive retrieval; default is batch retrieval over queries.jsonl")
     parser.add_argument("--topk", type=int, default=None,
@@ -149,6 +176,11 @@ def main():
     parser.add_argument("--no-dict", action="store_true",
                         help="skip the parameter dictionary, use heuristics only")
     args = parser.parse_args()
+    if args.demo:
+        cmd_demo(args)
+        return
+    if not args.dataset:
+        parser.error("--dataset is required (or run autobm25 --demo for the built-in example)")
     if args.interactive:
         cmd_interactive(args)
     else:

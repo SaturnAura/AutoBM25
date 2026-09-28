@@ -23,18 +23,37 @@ import os
 import numpy as np
 from scipy import stats
 
+from . import _accel
 from .bm25_engine import tokenize
 
 STOPWORDS_FILE = os.path.join(os.path.dirname(__file__), "data", "stopwords.txt")
 
 
 def load_stopwords():
+    """The bundled English stopword list.
+
+    The file lives in `autobm25/data/stopwords.txt` and is the single source of
+    truth for both backends (`_accel.stopword_set()` caches the same list in the
+    order the Rust side wants it).
+    """
+    if _accel.ENABLED:
+        return _accel.stopword_set()
     with open(STOPWORDS_FILE, encoding="utf-8") as f:
         return {w.strip() for w in f if w.strip()}
 
 
 def extract_features(docs, queries=None, stopwords=None, heaps_points=50):
-    """docs: [{"id": str, "text": str}], queries: optional [{"qid", "query"}] -> feature dict"""
+    """docs: [{"id": str, "text": str}], queries: optional [{"qid", "query"}] -> feature dict
+
+    `queries` may also be a plain list of query strings - the Rust path already
+    accepts both shapes, so both backends must agree here.
+
+    Delegates the tokenizing/counting pass to Rust when the PyO3 extension is
+    available (see `autobm25/_accel.py`); `heaps_points` is a knob the Rust side
+    fixes at its default, so a non-default value falls back to this implementation.
+    """
+    if _accel.ENABLED and heaps_points == 50:
+        return _accel.extract_features(docs, queries, stopwords)
     if stopwords is None:
         stopwords = load_stopwords()
 
@@ -177,7 +196,7 @@ def extract_features(docs, queries=None, stopwords=None, heaps_points=50):
         q_with_repeat = 0
         q_count = 0
         for q in queries:
-            toks = tokenize(q["query"])
+            toks = tokenize(q["query"] if isinstance(q, dict) else q)
             if not toks:
                 continue
             q_lens.append(len(toks))
