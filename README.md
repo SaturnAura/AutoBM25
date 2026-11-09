@@ -1,11 +1,14 @@
 # AutoBM25 — Zero-Label, Zero-Tuning BM25 Hyperparameter Adaptation
 
-[![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/autobm25.svg)](https://pypi.org/project/autobm25/)
+[![Python](https://img.shields.io/pypi/pyversions/autobm25.svg)](https://pypi.org/project/autobm25/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/SaturnAura/AutoBM25/blob/main/LICENSE)
+[![Rust MSRV](https://img.shields.io/badge/rust-1.71%2B-orange.svg)](https://github.com/SaturnAura/AutoBM25/blob/main/rust/Cargo.toml)
+[![CI](https://github.com/SaturnAura/AutoBM25/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SaturnAura/AutoBM25/actions/workflows/ci.yml)
 
-> 🇨🇳 Chinese version: [README_CN.md](README_CN.md)
+> [Chinese README](https://github.com/SaturnAura/AutoBM25/blob/main/README_CN.md)
 
-![AutoBM25 logo](logo/logo.png)
+![AutoBM25 logo](https://raw.githubusercontent.com/SaturnAura/AutoBM25/main/logo/logo.png)
 
 > Feed the corpus's **statistical features** into an **O(1) parameter dictionary** and get the optimal BM25 hyperparameters (k1 / b / k3 / δ / IDF) directly; fall back to interpretable heuristics when nothing matches. Verified on 16 BEIR datasets: **16/16 never worse than the BM25 defaults, NDCG@10 +18.0% median / +30.5% mean, 92.0% leave-one-corpus-out dictionary hit rate**.
 
@@ -17,16 +20,16 @@
 
 BM25 is the most widely used ranking model in information retrieval, but its **optimal hyperparameters vary dramatically across corpora** — short texts, long texts, code, legal documents, Q&A communities each need different k1/b values. In practice, everyone uses the fixed defaults `k1=1.2, b=0.75`, because tuning requires a labeled validation set, and **new corpora rarely have labels**.
 
-AutoBM25 takes a different path: **optimal parameters are a function of the corpus's statistical structure, and statistical structure can be measured without any labels.** Measure 18 features, look up the parameters — zero labels, zero tuning, constant time.
+AutoBM25 takes a different path: **optimal parameters are a function of the corpus's statistical structure, and statistical structure can be measured without any labels.** Measure 21 normalized dictionary features, look up the parameters — zero labels, zero tuning, constant time.
 
 ## Highlights
 
-- 🗂️ **18 statistical features** (P0/P1/P2): document length distribution, term-frequency redundancy, vocabulary growth, query-side statistics — each with an explicit "mechanism hypothesis" (why it predicts a given parameter)
+- 🗂️ **21 dictionary features** (15 corpus + 6 query-side) across length distribution, term-frequency redundancy, vocabulary growth, and query statistics — each with an explicit mechanism hypothesis
 - ⚡ **O(1) parameter dictionary**: nearest-neighbor lookup from feature vectors to optimal parameters, with **out-of-distribution (OOD) guard** and **heuristic fallback**; 48 entries ship with the repo (16 benchmark corpora + 32 cross-domain blends), each validated to be no worse than the defaults on the corpus it came from
 - 🔧 **k3 query-term-frequency saturation**: ablation-verified, up to **+19.9%** on long-query scenarios
 - 🧩 **Corpus mixing**: combine existing corpora into cross-domain blends to fill feature-space gaps; dictionary hit rate **70.6% → 92.0%**
 - 🚀 **Scales to 8.84M documents** (msmarco); self-built numpy-vectorized BM25/BM25+ engine with streaming stratified subsampling that keeps all relevant annotations
-- 🦀 **Rust/PyO3 acceleration**: the tokenize-and-index stage is available as a compiled extension, **4.6–9.3× faster end-to-end** and bit-for-bit identical in scoring (optional; pure Python still works)
+- 🦀 **Rust/PyO3 acceleration**: the tokenize-and-index stage is available as a compiled extension, **5.2–12.4× faster one-pass end-to-end** on the benchmark below, with identical scores (optional; pure Python still works)
 
 ## Results (16 BEIR datasets)
 
@@ -77,8 +80,12 @@ How those numbers are produced, because it matters when reading them:
 ## Quick Start
 
 ```bash
-pip install .
+pip install autobm25
 ```
+
+For a source checkout, use `pip install .`. If Cargo is available, the installer
+tries to build the optional Rust extension; otherwise it installs the fully
+functional pure-Python backend.
 
 Then hand it a corpus - a plain list of strings is all it takes, there is no file format to learn:
 
@@ -106,9 +113,10 @@ over a directory, and `--interactive` turns it into a prompt - the CLI is a
 convenience wrapper over this API, not a requirement. `autobm25 --demo` needs no files
 at all.
 
-On startup a log line shows the hyperparameters chosen for this dataset (e.g., `k1=0.5 b=0.495 k3=0.7 δ=0.97 idf=smoothed`).
+The CLI prints the hyperparameters chosen for the dataset (for example,
+`k1=0.5 b=0.495 k3=0.7 δ=0.97 idf=smoothed`).
 
-The parameter dictionary is bundled inside the package (`autobm25/data/param_dictionary.json`), so retrieval works out of the box after `pip install .` — no need to run any experiments first.
+The parameter dictionary is bundled inside the package (`autobm25/data/param_dictionary.json`), so retrieval works out of the box after installation — no need to run any experiments first.
 
 Want to see it run before wiring up your own data? `python -m autobm25 --demo` (or the
 `autobm25 --demo` console script) indexes a small built-in corpus - ten invented
@@ -125,10 +133,10 @@ The retrieval core is also implemented in Rust and exposed as a **PyO3** extensi
 module, so the hot loops run as compiled code while the API, the feature
 definitions and the rankings stay exactly as documented above.
 
-The extension is optional. `pip install .` on its own keeps using the pure-Python
-implementation, and every entry point falls back to it when the compiled module is
-missing — `autobm25.BACKEND` reports which one is live, and `AUTOBM25_NO_RUST=1`
-forces the Python path.
+The extension is optional. Published platform wheels include it, while a source
+install compiles it when Cargo is available and falls back to the pure-Python
+implementation when it is not. `autobm25.BACKEND` reports which one is live, and
+`AUTOBM25_NO_RUST=1` forces the Python path.
 
 ### Which stages are covered
 
@@ -202,32 +210,32 @@ cannot fail because of a missing or mismatched binary — it only runs ~7× slow
 From a source checkout it comes down to `cargo`: with a toolchain on PATH,
 `pip install .` compiles the extension for you, and `python rust/build_pyext.py`
 does the same thing by hand (`--check` also verifies that it imports). Without a
-toolchain you still get a fully working pure-Python package. Toolchains are tried in
-order - the default first, then any installed `*-windows-gnu` one - and
-`--toolchain <name>` pins one explicitly.
+toolchain you still get a fully working pure-Python package. Set
+`AUTOBM25_REQUIRE_RUST=1` for release builds that must fail rather than silently
+omit the accelerator. Toolchains are tried in order - the default first, then any
+installed `*-windows-gnu` one - and `--toolchain <name>` pins one explicitly.
 
 ### Measured speedup
 
-12 logical cores, CPython 3.11.5, numpy 1.26.4. Same machine, same data, same
-process, `top_k=100`; the Python column is the same package with
-`AUTOBM25_NO_RUST=1`.
+Measured on 2026-11-09 on Windows with 12 logical cores, CPython 3.11.5,
+numpy 1.26.4 and scipy 1.12.0. Same machine, same data and process,
+`top_k=100`; the Python column is the same package with `AUTOBM25_NO_RUST=1`.
 
 | Dataset       | Docs    | Tokens | Queries | Build index + features      | Search (all queries)        | End-to-end                  |
 | ------------- | ------: | -----: | ------: | --------------------------: | --------------------------: | --------------------------: |
-| arguana       | 8,674   | 1.45M  | 1,406   | 1.79 s → 0.25 s (**7.3×**)  | 3.43 s → 0.24 s (**14.3×**) | 5.28 s → 0.57 s (**9.3×**)  |
-| scifact       | 5,183   | 1.11M  | 1,109   | 1.33 s → 0.15 s (**9.1×**)  | 0.33 s → 0.07 s (**4.8×**)  | 1.71 s → 0.26 s (**6.5×**)  |
-| nfcorpus      | 3,633   | 0.85M  | 3,237   | 0.99 s → 0.12 s (**8.3×**)  | 0.31 s → 0.07 s (**4.1×**)  | 1.42 s → 0.31 s (**4.6×**)  |
-| trec-covid-v2 | 129,179 | 27.2M  | 50      | 36.04 s → 3.78 s (**9.5×**) | 0.34 s → 0.06 s (**5.7×**)  | 37.39 s → 4.86 s (**7.7×**) |
+| arguana       | 8,674   | 1.45M  | 1,406   | 2.27 s → 0.24 s (**9.6×**)  | 3.87 s → 0.22 s (**17.6×**) | 6.38 s → 0.52 s (**12.4×**) |
+| scifact       | 5,183   | 1.11M  | 1,109   | 1.16 s → 0.13 s (**8.8×**)  | 0.39 s → 0.06 s (**6.2×**)  | 1.59 s → 0.23 s (**6.8×**)  |
+| nfcorpus      | 3,633   | 0.85M  | 3,237   | 0.97 s → 0.11 s (**9.3×**)  | 0.35 s → 0.07 s (**4.9×**)  | 1.50 s → 0.29 s (**5.2×**)  |
+| trec-covid-v2 | 129,179 | 27.2M  | 50      | 41.27 s → 4.22 s (**9.8×**) | 0.37 s → 0.05 s (**7.1×**)  | 42.88 s → 5.26 s (**8.1×**) |
 
-*end-to-end* = load + parameter prediction + index + features + search. The split
+*End-to-end* = load + parameter prediction + index + features + search. The split
 path (`extract_features` and `build_index` called separately, each tokenizing the
-corpus) is **3.4–7.0×** faster.
+corpus) is **3.7–8.9×** faster.
 
-Reading the table: tokenizing and indexing run at ~7.2M tokens/s in Rust against
-~0.75M tokens/s in Python, and the gap widens with corpus size because the Python
-cost is linear in tokens with a dict operation each. Scoring gains most on
-long-query workloads (arguana, 14.3×) where the old `np.add.at` scatter-add is
-slowest, and the batch path uses every core with the GIL released.
+Reading the table: the gap generally widens with corpus size because Python's
+per-token dictionary work is linear in tokens. Scoring gains most on long-query
+workloads (arguana, 17.6×) where the old `np.add.at` scatter-add is slowest, and
+the batch path uses every core with the GIL released.
 
 ### Parity
 
@@ -236,7 +244,7 @@ hyperparameters, the full ranked list of every query and MRR@10 / NDCG@10 /
 Recall@100 gives the same answer either way. On scifact, nfcorpus, arguana and
 trec-covid-v2:
 
-- feature values agree to ≤1e-11 — they come from different floating-point summation
+- feature values agree to about `1e-11` — they come from different floating-point summation
   orders over identical numbers — and the chosen hyperparameters are identical;
 - every ranked list is bitwise identical, except where documents **tie** at the
   `top_k` cutoff: `np.argpartition` returns an arbitrary member of a tie group,
@@ -267,6 +275,8 @@ trec-covid-v2:
 autobm25/
 ├── autobm25/             # the pip package: retrieval API (engine, features, dictionary, CLI) + data/
 ├── rust/                 # Rust core + PyO3 bindings (python rust/build_pyext.py)
+├── tests/                # pytest API, loader, metrics, dictionary and parity tests
+├── .github/workflows/    # three-platform CI and Trusted Publishing
 ├── examples/             # runnable library examples (quickstart.py, ...)
 ├── logo/
 ├── config.yaml           # heuristic coefficients
@@ -282,4 +292,4 @@ autobm25/
 
 ---
 
-🇨🇳 中文版：[README_CN.md](README_CN.md)
+[Chinese README](https://github.com/SaturnAura/AutoBM25/blob/main/README_CN.md)

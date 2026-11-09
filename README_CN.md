@@ -1,11 +1,14 @@
 # AutoBM25 —— 零标注、零调参的 BM25 超参数自适应
 
-[![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/autobm25.svg)](https://pypi.org/project/autobm25/)
+[![Python](https://img.shields.io/pypi/pyversions/autobm25.svg)](https://pypi.org/project/autobm25/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/SaturnAura/AutoBM25/blob/main/LICENSE)
+[![Rust MSRV](https://img.shields.io/badge/rust-1.71%2B-orange.svg)](https://github.com/SaturnAura/AutoBM25/blob/main/rust/Cargo.toml)
+[![CI](https://github.com/SaturnAura/AutoBM25/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SaturnAura/AutoBM25/actions/workflows/ci.yml)
 
-> 🇬🇧 English version: [README.md](README.md)
+> [English README](https://github.com/SaturnAura/AutoBM25/blob/main/README.md)
 
-![AutoBM25 logo](logo/logo.png)
+![AutoBM25 logo](https://raw.githubusercontent.com/SaturnAura/AutoBM25/main/logo/logo.png)
 
 > 输入任意语料的**统计特征** → **O(1) 大字典查表**直接得到最优 BM25 超参数（k1 / b / k3 / δ / IDF）；查不到就启发式兜底。16 个 BEIR 数据集验证：**16/16 不劣于默认参数、NDCG@10 中位数 +18.0%（均值 +30.5%）、留一语料集词典命中率 92.0%**。
 
@@ -17,16 +20,16 @@
 
 BM25 是信息检索最常用的排序模型，但它的**最优超参数随语料变化极大**——短文本、长文本、代码、法律文书、问答社区，各自的最优 k1/b 完全不同。实际工程却永远用 `k1=1.2, b=0.75` 的默认值，因为调参需要带标注的验证集，而新语料往往**没有标注**。
 
-AutoBM25 换了一条路：**最优参数是语料统计结构的函数**，而统计结构不需要标注就能测量。测量出 18 维统计特征，查表即得参数——零标注、零调参、常数时间。
+AutoBM25 换了一条路：**最优参数是语料统计结构的函数**，而统计结构不需要标注就能测量。测量出 21 个归一化词典特征，查表即得参数——零标注、零调参、常数时间。
 
 ## 亮点
 
-- 🗂️ **18 维统计特征**（P0/P1/P2）：文档长度分布、词频冗余度、词汇增长曲线、查询侧特征——每个特征都有明确的"机制假设"（为什么它能预测某个参数）
+- 🗂️ **21 个词典特征**（15 个语料特征 + 6 个查询侧特征）：覆盖文档长度分布、词频冗余度、词汇增长曲线与查询统计，每个特征都有明确的机制假设
 - ⚡ **O(1) 参数大字典**：`特征向量 → 最优参数` 最近邻查表，含**分布外（OOD）防护**与**启发式回退**；48 个条目随包提交（16 个基准语料 + 32 个跨域拼接语料），每条都在来源语料的全部查询上验证过不劣于默认参数
 - 🔧 **k3 查询词频饱和项**：消融试验确认有效，长查询场景相对提升最高 **+19.9%**
 - 🧩 **多语料拼接（Mixing）**：把已有语料组合拼接生成"跨域样本"，主动在特征空间补点，词典命中率 **70.6% → 92.0%**
 - 🚀 **规模验证到 884 万文档**（msmarco），全自研 numpy 向量化 BM25/BM25+ 引擎，超大数据集流式子采样、相关标注全保留
-- 🦀 **Rust/PyO3 加速**：分词建索引阶段提供编译扩展，**端到端快 4.6–9.3×**，打分逐位一致（可选，纯 Python 依旧可用）
+- 🦀 **Rust/PyO3 加速**：分词建索引阶段提供编译扩展，本次基准中**单遍端到端快 5.2–12.4×**，分数一致（可选，纯 Python 依旧可用）
 
 ## 数值提升（16 个 BEIR 数据集）
 
@@ -71,8 +74,11 @@ AutoBM25 换了一条路：**最优参数是语料统计结构的函数**，而�
 ## 快速开始
 
 ```bash
-pip install .
+pip install autobm25
 ```
+
+源码目录安装使用 `pip install .`。如果检测到 Cargo，安装过程会尝试编译可选
+Rust 扩展；否则自动安装功能完整的纯 Python 后端。
 
 然后直接把语料交给它 —— 传一个字符串列表就够了，不需要学任何文件格式：
 
@@ -97,9 +103,9 @@ retriever.search("parameter tuning", top_k=5)
 就变成输入查询的交互模式——CLI 只是这套 API 的便利封装，不是硬性要求。`autobm25 --demo`
 连文件都不用准备。
 
-启动时会打印一条日志，显示本数据集自适应选择的 BM25 超参数（如 `k1=0.5 b=0.495 k3=0.7 δ=0.97 idf=smoothed`）。
+CLI 会打印本数据集自适应选择的 BM25 超参数（如 `k1=0.5 b=0.495 k3=0.7 δ=0.97 idf=smoothed`）。
 
-参数字典随包内置（`autobm25/data/param_dictionary.json`），`pip install .` 后开箱即用，无需先跑任何实验。
+参数字典随包内置（`autobm25/data/param_dictionary.json`），安装后开箱即用，无需先跑任何实验。
 
 想先看效果？`autobm25 --demo` 会索引一份内置的小语料（十篇自己编的文档，分别讲冲煮、骑行和检索），打印自动选出的超参数和几条查询的排序结果，不需要任何数据集目录；`autobm25 --demo --interactive` 可以直接对这份语料输入你自己的查询，`python examples/quickstart.py` 则是同一件事的可复制脚本（语料是一份编出来的客服 FAQ）。
 
@@ -107,7 +113,9 @@ retriever.search("parameter tuning", top_k=5)
 
 检索内核同时提供了一份 Rust 实现，通过 **PyO3** 编译成 Python 扩展模块：热点循环跑在编译代码里，而对外接口、特征定义和排序结果与上文完全一致。
 
-该扩展是**可选**的。单独 `pip install .` 仍然使用纯 Python 实现；编译模块不存在时，所有入口都会自动回退到纯 Python——`autobm25.BACKEND` 会告诉你当前用的是哪一个，设置 `AUTOBM25_NO_RUST=1` 可以强制走 Python。
+该扩展是**可选**的。发布的多平台 wheel 默认包含它；从源码安装时，有 Cargo
+就尝试编译，没有就自动回退到纯 Python。`autobm25.BACKEND` 会告诉你当前用的是
+哪一个，设置 `AUTOBM25_NO_RUST=1` 可以强制走 Python。
 
 ### 哪些阶段走了 Rust
 
@@ -169,30 +177,33 @@ pip 会自动挑匹配系统/CPU 的那个），因为扩展已经在包里。`a
 
 从源码安装则取决于有没有 `cargo`：有工具链时 `pip install .` 会自动编译，也可以手动
 `python rust/build_pyext.py`（加 `--check` 会顺带验证能否导入）；没有工具链也照样能用，
-只是退回纯 Python。工具链会依次尝试默认的、再是已安装的 `*-windows-gnu`，也可以用
-`--toolchain <name>` 直接指定。
+只是退回纯 Python。发布构建可设置 `AUTOBM25_REQUIRE_RUST=1`，缺少扩展时立即失败，
+避免静默产出不含加速器的 wheel。工具链会依次尝试默认的、再是已安装的
+`*-windows-gnu`，也可以用 `--toolchain <name>` 直接指定。
 
 ### 实测加速
 
-12 个逻辑核，CPython 3.11.5，numpy 1.26.4。同一台机器、同一份数据、同一个进程，`top_k=100`；Python 一列是同一个包加上 `AUTOBM25_NO_RUST=1`。
+2026-11-09 在 Windows 上实测：12 个逻辑核，CPython 3.11.5，numpy 1.26.4，
+scipy 1.12.0。同一台机器、同一份数据、同一个进程，`top_k=100`；Python 一列是
+同一个包加上 `AUTOBM25_NO_RUST=1`。
 
 | 数据集        | 文档数  | token 数 | 查询数 | 建索引+特征                          | 检索（全部查询）                     | 端到端                               |
 | ------------- | ------: | -------: | -----: | -----------------------------------: | -----------------------------------: | -----------------------------------: |
-| arguana       | 8,674   | 145 万   | 1,406  | 1.79 s → 0.25 s（**7.3×**）          | 3.43 s → 0.24 s（**14.3×**）         | 5.28 s → 0.57 s（**9.3×**）          |
-| scifact       | 5,183   | 111 万   | 1,109  | 1.33 s → 0.15 s（**9.1×**）          | 0.33 s → 0.07 s（**4.8×**）          | 1.71 s → 0.26 s（**6.5×**）          |
-| nfcorpus      | 3,633   | 85 万    | 3,237  | 0.99 s → 0.12 s（**8.3×**）          | 0.31 s → 0.07 s（**4.1×**）          | 1.42 s → 0.31 s（**4.6×**）          |
-| trec-covid-v2 | 129,179 | 2717 万  | 50     | 36.04 s → 3.78 s（**9.5×**）         | 0.34 s → 0.06 s（**5.7×**）          | 37.39 s → 4.86 s（**7.7×**）         |
+| arguana       | 8,674   | 145 万   | 1,406  | 2.27 s → 0.24 s（**9.6×**）          | 3.87 s → 0.22 s（**17.6×**）         | 6.38 s → 0.52 s（**12.4×**）         |
+| scifact       | 5,183   | 111 万   | 1,109  | 1.16 s → 0.13 s（**8.8×**）          | 0.39 s → 0.06 s（**6.2×**）          | 1.59 s → 0.23 s（**6.8×**）          |
+| nfcorpus      | 3,633   | 85 万    | 3,237  | 0.97 s → 0.11 s（**9.3×**）          | 0.35 s → 0.07 s（**4.9×**）          | 1.50 s → 0.29 s（**5.2×**）          |
+| trec-covid-v2 | 129,179 | 2717 万  | 50     | 41.27 s → 4.22 s（**9.8×**）         | 0.37 s → 0.05 s（**7.1×**）          | 42.88 s → 5.26 s（**8.1×**）         |
 
-*端到端* = 加载 + 参数预测 + 建索引 + 特征 + 检索。若按拆分调用（`extract_features` 与 `build_index` 各自分词一遍）计，则是 **3.4–7.0×**。
+*端到端* = 加载 + 参数预测 + 建索引 + 特征 + 检索。若按拆分调用（`extract_features` 与 `build_index` 各自分词一遍）计，则是 **3.7–8.9×**。
 
-怎么读这张表：Rust 侧分词建索引约 **720 万 token/s**，Python 侧约 **75 万 token/s**；而且语料越大差距越大，因为 Python 的开销与 token 数成正比、且每个 token 都要碰一次字典。检索的提升在长查询场景最明显（arguana，14.3×），因为旧的 `np.add.at` 散射累加在那里最慢；批量路径会释放 GIL 并吃满所有核。
+怎么读这张表：随着语料增大，Python 逐 token 的字典操作成本通常会让差距更明显。检索提升在长查询场景最明显（arguana，17.6×），因为旧的 `np.add.at` 散射累加在那里最慢；批量路径会释放 GIL 并吃满所有核。
 
 ### 一致性
 
 在同一份语料上跑两套后端，逐项比对特征向量、选出的超参数、每个查询的完整排序，以及
 MRR@10 / NDCG@10 / Recall@100，结论是一致的。在 scifact、nfcorpus、arguana、trec-covid-v2 上：
 
-- 特征值差异 ≤1e-11（同一批数字、不同的浮点求和顺序所致），选出的超参数完全相同；
+- 特征值差异约 `1e-11`（同一批数字、不同的浮点求和顺序所致），选出的超参数完全相同；
 - 所有排序逐位一致，**唯一例外**是文档在 `top_k` 截断处**并列同分**时：`np.argpartition` 会从并列分组里任取一个，而 Rust 采用 Python 代码自己写明的 tie-break（文档下标小者优先）。两者分数逐位相同，MRR@10 与 NDCG@10 不受影响；当第 100 名那个并列文档恰好在其中一边被判为相关时，Recall@100 会有第 4 位小数级别的差异。
 
 ## 局限
@@ -212,6 +223,8 @@ MRR@10 / NDCG@10 / Recall@100，结论是一致的。在 scifact、nfcorpus、ar
 autobm25/
 ├── autobm25/             # pip 包：检索接口（引擎、特征、词典、CLI）+ data/
 ├── rust/                 # Rust 内核 + PyO3 绑定（python rust/build_pyext.py）
+├── tests/                # pytest：API、加载器、指标、词典与双后端一致性
+├── .github/workflows/    # 三平台 CI 与 Trusted Publishing
 ├── examples/             # 可直接运行的库用法示例（quickstart.py 等）
 ├── logo/
 ├── config.yaml           # 启发式系数

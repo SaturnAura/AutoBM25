@@ -4,3 +4,4 @@
 include LICENSE README.md README_CN.md
 recursive-include rust *.rs Cargo.toml Cargo.lock build_pyext.py README.md
 prune rust/target
+global-exclude *.pyd *.so *.dylib

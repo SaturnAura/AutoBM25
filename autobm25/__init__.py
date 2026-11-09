@@ -4,6 +4,7 @@ Feed a corpus in -> extract statistical features -> O(1) lookup in the parameter
 dictionary (OOD guard + heuristic fallback) -> get BM25 hyperparameters -> index and search.
 """
 
+import operator
 import os
 
 from . import _accel
@@ -13,7 +14,7 @@ from .feature_extractor import extract_features
 from .loader import load_dataset, load_dataset_subsampled
 from .rule_predictor import predict, predict_with_dictionary
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 #: `"rust"` when the PyO3 extension is loaded, `"python"` otherwise.
 BACKEND = _accel.BACKEND
@@ -56,10 +57,43 @@ class AutoBM25:
         -> parameter dictionary lookup (OOD guard + heuristic fallback)
         -> BM25 hyperparameters. No labels are needed.
         """
+        # Materialize list-like inputs such as pandas columns. A bare dict is
+        # ambiguous, so it must be wrapped by the caller (or supplied as one
+        # {"id", "text"} record); a bare string is naturally one document.
+        if isinstance(docs, str):
+            docs = [docs]
+        elif isinstance(docs, dict):
+            if "id" in docs and "text" in docs:
+                docs = [docs]
+            else:
+                raise TypeError(
+                    "docs must be a sequence of strings or {'id', 'text'} records; "
+                    "wrap a bare mapping in a list"
+                )
+        else:
+            docs = list(docs)
         if not docs:
             raise ValueError("docs must not be empty (need at least one document)")
-        if isinstance(docs[0], str):
-            docs = [{"id": str(i), "text": t} for i, t in enumerate(docs)]
+
+        normalized = []
+        for i, doc in enumerate(docs):
+            if isinstance(doc, str):
+                normalized.append({"id": str(i), "text": doc})
+                continue
+            try:
+                doc_id = doc["id"]
+                text = doc["text"]
+            except (KeyError, TypeError) as exc:
+                raise TypeError(
+                    f"document {i} must be a string or a mapping with 'id' and 'text'"
+                ) from exc
+            normalized.append({"id": str(doc_id), "text": str(text)})
+        docs = normalized
+
+        if isinstance(queries, str):
+            queries = [queries]
+        elif queries is not None:
+            queries = list(queries)
         self.docs = docs
         self.engine = BM25Engine().build_index(docs)
         # On the Rust backend the index build already collected every statistic the
@@ -98,7 +132,7 @@ class AutoBM25:
             raise RuntimeError(
                 "no index yet: call index(corpus) first, or build via AutoBM25.from_dataset(path)"
             )
-        return self.engine.search(query, top_k=top_k)
+        return self.engine.search(query, top_k=_top_k_value(top_k))
 
     def search_many(self, queries, top_k=10, threads=None):
         """Batch variant of `search`.
@@ -111,7 +145,9 @@ class AutoBM25:
             raise RuntimeError(
                 "no index yet: call index(corpus) first, or build via AutoBM25.from_dataset(path)"
             )
-        return self.engine.search_many(list(queries), top_k=top_k, threads=threads)
+        return self.engine.search_many(
+            list(queries), top_k=_top_k_value(top_k), threads=threads
+        )
 
     @property
     def backend(self):
@@ -138,3 +174,14 @@ __all__ = [
 def backend_info():
     """Which retrieval backend is loaded, and why (if it is not the Rust one)."""
     return _accel.backend_info()
+
+
+def _top_k_value(top_k):
+    """Validate a public result limit and return it as a non-negative integer."""
+    try:
+        value = operator.index(top_k)
+    except TypeError as exc:
+        raise TypeError("top_k must be an integer") from exc
+    if value < 0:
+        raise ValueError("top_k must be greater than or equal to zero")
+    return value

@@ -17,7 +17,7 @@ Set ``AUTOBM25_SKIP_RUST_BUILD=1`` to skip step 2.
 Nothing here is required for correctness: `autobm25/_accel.py` falls back to the
 Python engine whenever the compiled module is absent, so **an end user never
 needs a Rust toolchain** - they install a wheel that already contains the
-compiled extension. See the "Shipping it to other users" section of the README.
+compiled extension. See the "Rust acceleration (PyO3)" section of the README.
 """
 
 import os
@@ -73,12 +73,30 @@ def skipped_by_env():
     )
 
 
+def required_by_env():
+    """Whether a release build must fail instead of falling back to Python."""
+    return os.environ.get("AUTOBM25_REQUIRE_RUST", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
+
 def build_with_cargo():
     """Compile the extension in place; returns True when it appeared."""
     if skipped_by_env():
+        if required_by_env():
+            raise SystemExit(
+                "AUTOBM25_REQUIRE_RUST is set but AUTOBM25_SKIP_RUST_BUILD is also set"
+            )
         print("[autobm25] AUTOBM25_SKIP_RUST_BUILD is set - installing pure Python")
         return False
     if shutil.which("cargo") is None:
+        if required_by_env():
+            raise SystemExit(
+                "AUTOBM25_REQUIRE_RUST is set but cargo was not found on PATH"
+            )
         print(
             "[autobm25] cargo not found - installing the pure-Python package.\n"
             "           `pip install autobm25` wheels already contain the compiled\n"
@@ -89,9 +107,14 @@ def build_with_cargo():
     try:
         subprocess.run([sys.executable, BUILD_SCRIPT], cwd=HERE, check=True)
     except (subprocess.CalledProcessError, OSError) as exc:
+        if required_by_env():
+            raise SystemExit(f"AUTOBM25_REQUIRE_RUST is set but the Rust build failed: {exc}")
         print(f"[autobm25] Rust build failed ({exc}); falling back to pure Python")
         return False
-    return os.path.exists(extension_path())
+    built = os.path.exists(extension_path())
+    if required_by_env() and not built:
+        raise SystemExit("AUTOBM25_REQUIRE_RUST is set but no extension was produced")
+    return built
 
 
 def resolve_extension():

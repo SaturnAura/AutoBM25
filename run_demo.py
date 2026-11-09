@@ -12,7 +12,7 @@ QUERIES = [
     "third one",
 ]
 retriever = AutoBM25()
-retriever.index(corpus, queries=QUERIES)   # corpus 可为字符串列表或 [{"id","text"}]
-print(retriever.params)                    # 该语料自动选出的超参数
+retriever.index(corpus, queries=QUERIES)   # strings or [{"id", "text"}] records
+print(retriever.params)                    # hyperparameters selected for this corpus
 retriever.search("your query", top_k=3)    # -> [(doc_id, score), ...]
-retriever.search_many(QUERIES, top_k=1)    # 批量，一条 query 一个排序列表
+retriever.search_many(QUERIES, top_k=1)    # one ranked list per query

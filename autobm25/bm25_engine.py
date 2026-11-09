@@ -17,10 +17,22 @@ the results are identical either way; `explain()` reports which one is live.
 """
 
 import math
+import operator
 
 import numpy as np
 
 from . import _accel
+
+
+def _top_k_value(top_k):
+    """Validate a public result limit without silently accepting floats."""
+    try:
+        value = operator.index(top_k)
+    except TypeError as exc:
+        raise TypeError("top_k must be an integer") from exc
+    if value < 0:
+        raise ValueError("top_k must be greater than or equal to zero")
+    return value
 
 
 class _TermCountView:
@@ -200,9 +212,10 @@ class BM25Engine:
 
     def search(self, query, top_k=10):
         """Return [(doc_id, score), ...] sorted by descending score."""
+        top_k = _top_k_value(top_k)
         if self._rust is not None:
             return self._rust.search(query, top_k)
-        if self.N == 0:
+        if self.N == 0 or top_k == 0:
             return []
         k1, b, k3, delta, avgdl = self.k1, self.b, self.k3, self.delta, self.avgdl
         dl = self._dl_float
@@ -240,6 +253,7 @@ class BM25Engine:
         worker thread, so a multi-thousand-query evaluation no longer serializes on
         Python's per-query overhead. On the Python backend it is a plain loop.
         """
+        top_k = _top_k_value(top_k)
         if self._rust is not None:
             return self._rust.search_many(queries, top_k, threads)
         return [self.search(q, top_k) for q in queries]

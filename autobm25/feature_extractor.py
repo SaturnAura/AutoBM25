@@ -1,11 +1,8 @@
 """Statistical feature extraction.
 
 Takes a document collection (optionally with queries) and outputs a feature dict.
-Features are tiered by priority:
-  P0 (required): doc_count, avgdl, std_len, cv_len, avg_ttr, avg_max_tf, length_tf_corr
-  P1 (recommended): len_skew, len_p90, len_p10, len_ratio_p90_p10, hapax_ratio,
-                    vocab_size, heaps_beta, stopword_density
-  P2 (optional): zipf_alpha, avg_query_len, query_idf_mean, query_idf_std, query_oov_ratio
+The dictionary uses 21 scaled features: 15 corpus features and 6 query-side
+features. Output also includes document-count aliases and a total-token diagnostic.
 
 Feature-to-hyperparameter rationale (heuristic basis):
 - Document-length features -> b: high cv_len (large length variance) -> smaller b;

@@ -7,8 +7,9 @@
 //!    the per-document statistics the features are derived from. The Python
 //!    pipeline tokenizes the whole corpus twice (`extract_features` and then
 //!    `BM25Engine.build_index`); here it happens once.
-//! 2. `Index::features` - the 18-21 corpus/query statistics, read off that same
-//!    pass instead of re-walking every document with a Python-level dict.
+//! 2. `Index::features` - the 21 dictionary features (15 corpus + 6 query-side),
+//!    plus three document-count/token diagnostics, read off that same pass
+//!    instead of re-walking every document with a Python-level dict.
 //! 3. `Index::search` / `Index::search_many` - BM25 scoring straight over the
 //!    posting lists, with the GIL released and one scorer per worker thread.
 //!
