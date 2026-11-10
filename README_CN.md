@@ -2,7 +2,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/autobm25.svg)](https://pypi.org/project/autobm25/)
 [![Python](https://img.shields.io/pypi/pyversions/autobm25.svg)](https://pypi.org/project/autobm25/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/SaturnAura/AutoBM25/blob/main/LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/SaturnAura/AutoBM25/blob/main/LICENSE)
 [![Rust MSRV](https://img.shields.io/badge/rust-1.71%2B-orange.svg)](https://github.com/SaturnAura/AutoBM25/blob/main/rust/Cargo.toml)
 [![CI](https://github.com/SaturnAura/AutoBM25/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SaturnAura/AutoBM25/actions/workflows/ci.yml)
 
@@ -236,7 +236,7 @@ autobm25/
 
 ## License
 
-本项目采用 [MIT License](LICENSE)：代码可**自由复制、修改、商用**，唯一要求是在副本中**保留版权声明与本许可文本**（即"使用请注明出处"）。引用本项目时附上仓库链接即可满足要求。
+本项目采用 [Apache License 2.0](LICENSE)：在遵守许可证条款的前提下，可复制、修改、分发并用于商业用途。分发代码或衍生作品时，应保留所需的版权、归属及许可证声明。版权归属信息见 [NOTICE](NOTICE)。
 
 ---
 

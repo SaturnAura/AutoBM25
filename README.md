@@ -2,7 +2,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/autobm25.svg)](https://pypi.org/project/autobm25/)
 [![Python](https://img.shields.io/pypi/pyversions/autobm25.svg)](https://pypi.org/project/autobm25/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/SaturnAura/AutoBM25/blob/main/LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/SaturnAura/AutoBM25/blob/main/LICENSE)
 [![Rust MSRV](https://img.shields.io/badge/rust-1.71%2B-orange.svg)](https://github.com/SaturnAura/AutoBM25/blob/main/rust/Cargo.toml)
 [![CI](https://github.com/SaturnAura/AutoBM25/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SaturnAura/AutoBM25/actions/workflows/ci.yml)
 
@@ -288,7 +288,7 @@ autobm25/
 
 ## License
 
-[MIT License](LICENSE): the code can be freely **copied, modified, and used commercially**; the only requirement is to **retain the copyright notice and this license text** in copies (i.e., attribution). Linking the repository when using the project satisfies this requirement.
+[Apache License 2.0](LICENSE): the code can be copied, modified, distributed, and used commercially under the terms of the license. Copies and derivative distributions must retain the required copyright, attribution, and license notices. See [NOTICE](NOTICE) for attribution information.
 
 ---
 

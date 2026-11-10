@@ -4,7 +4,7 @@ version = "0.1.1"
 edition = "2021"
 rust-version = "1.71"
 description = "Rust rewrite of the AutoBM25 retrieval core (zero-label BM25 hyperparameter adaptation)"
-license = "MIT"
+license = "Apache-2.0"
 
 [lib]
 name = "autobm25"
